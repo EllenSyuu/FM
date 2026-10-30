@@ -1,0 +1,12 @@
+FM Notebook
+Copyright 2026 Ziyi Zhou
+
+This product includes fonts licensed under the SIL Open Font License 1.1:
+  Cormorant Garamond (Christian Thalmann), Inter (Rasmus Andersson),
+  La Belle Aurore (Kimberly Geswein). Licence texts are in fonts/.
+
+This product includes KaTeX (https://katex.org), MIT License,
+  Copyright (c) 2013-2020 Khan Academy and other contributors. See vendor/katex/LICENSE.
+
+"Exam FM" is an examination of the Society of Actuaries. This project is an independent
+study aid and is not affiliated with or endorsed by the Society of Actuaries.
