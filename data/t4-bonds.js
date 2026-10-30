@@ -60,13 +60,13 @@ const lessons = [
         timeline: tl(5, bondFlows(5, '80', '1,000'), { focal: 0, rate: 'j = 6%' }),
         vars: { i: j },
         steps: [
-          expr('第一步：每年的息票 Fr =', { target: F * rr, model: '1000*0.08', hint: '面值 × 息票率。' }),
+          expr('第一步：每年的息票 Fr =', { target: F * rr, model: '1000*0.08', hint: '面值 × 息票率。', anim: [{ do: 'note', t: 2.5, y: 92, text: 'Fr = 80' }] }),
           choice('第二步：折现用哪个利率？', [
             ['收益率 6%', true],
             ['息票率 8%', false, '息票率只决定每年付多少；买家按自己要求的收益率折现。'],
             ['两者的平均 7%', false, '没有这种做法。'],
-          ]),
-          expr('第三步：价格 P =（这里的 i 就是收益率 6%）', { target: price(80, 1000, 5, j), model: '80a(5) + 1000v^5', why: `$P = ${money(price(80, 1000, 5, j))}$，高于面值：息票给得比市场要求的多，买家愿意多付。` }),
+          ], { anim: [{ do: 'note', t: 0.55, y: 92, text: '按 6% 折现' }] }),
+          expr('第三步：价格 P =（这里的 i 就是收益率 6%）', { target: price(80, 1000, 5, j), model: '80a(5) + 1000v^5', anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5], to: 0, amt: 80, i: j }, { do: 'move', from: 5, to: 0, label: '×v⁵', tone: 'ink', result: price(80, 1000, 5, j) }], why: `$P = ${money(price(80, 1000, 5, j))}$，高于面值：息票给得比市场要求的多，买家愿意多付。` }),
         ],
       };
     },
@@ -196,9 +196,9 @@ const lessons = [
             ['溢价（premium）', true],
             ['折价（discount）', false, '息票率 7% > 收益率 5%，息票给得多，价格会高于面值。'],
             ['平价（par）', false, '只有息票率 = 收益率才平价。'],
-          ]),
-          expr('每期“多给”的息票 $Fr - Cj$ =', { target: 70 - 50, model: '70 - 1000i' }),
-          expr('价格 P = C + (Fr − Cj)a_n =', { target: 1000 + 20 * an(10, j), model: '1000 + (70 - 1000i)a(10)', why: `溢价 ${money(20 * an(10, j))}，价格 ${money(1000 + 20 * an(10, j))}。` }),
+          ], { anim: [{ do: 'note', t: 2.5, y: 42, text: '7% > 5%：溢价' }] }),
+          expr('每期“多给”的息票 $Fr - Cj$ =', { target: 70 - 50, model: '70 - 1000i', anim: [{ do: 'note', t: 7.5, y: 42, text: '每期多给 20' }] }),
+          expr('价格 P = C + (Fr − Cj)a_n =', { target: 1000 + 20 * an(10, j), model: '1000 + (70 - 1000i)a(10)', anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], to: 0, amt: 20, i: j }, { do: 'note', t: 1.5, y: 92, text: '+ C = 1,000' }], why: `溢价 ${money(20 * an(10, j))}，价格 ${money(1000 + 20 * an(10, j))}。` }),
         ],
       };
     },
@@ -301,15 +301,16 @@ const lessons = [
     example: r => {
       const j = 0.06, Fr = 80, C = 1000, n = 6;
       const P0 = price(Fr, C, n, j), am1 = Fr - j * P0;
+      const bv = Array.from({ length: n + 1 }, (_, k) => [k, price(Fr, C, n - k, j)]); // BV_k, ends at C
       return {
         text: '面值 1,000，息票 80（年付），6 年，按面值赎回，收益率 6%。造出第 1 年的摊销，并求第 2 次息票后的账面价值。',
         timeline: tl(6, bondFlows(6, '80', '1,000'), { focal: 2, rate: 'j = 6%' }),
         vars: { i: j },
         steps: [
-          expr('价格 = 时刻 0 的账面价值 =', { target: P0, model: '80a(6) + 1000v^6' }),
-          expr('第 1 年真正赚的利息 = j × BV₀ =', { target: j * P0, model: 'i(80a(6) + 1000v^6)' }),
-          expr('第 1 年的溢价摊销 =', { target: am1, model: '(80 - 1000i)v^6', hint: '捷径：$(Fr - Cj)v^{n-k+1}$，这里 k = 1。', why: `也等于 $80 - ${money(j * P0)} = ${money(am1)}$。` }),
-          expr('第 2 次息票后的账面价值 $BV_2$ =', { target: price(Fr, C, 4, j), model: '80a(4) + 1000v^4', why: '还剩 4 次息票和赎回值。' }),
+          expr('价格 = 时刻 0 的账面价值 =', { target: P0, model: '80a(6) + 1000v^6', anim: [{ do: 'balance', points: bv.slice(0, 1), max: P0 }] }),
+          expr('第 1 年真正赚的利息 = j × BV₀ =', { target: j * P0, model: 'i(80a(6) + 1000v^6)', anim: [{ do: 'note', t: 0.5, y: 100, text: `利息 ${money(j * P0)}` }] }),
+          expr('第 1 年的溢价摊销 =', { target: am1, model: '(80 - 1000i)v^6', anim: [{ do: 'balance', points: bv.slice(0, 2), max: P0 }], hint: '捷径：$(Fr - Cj)v^{n-k+1}$，这里 k = 1。', why: `也等于 $80 - ${money(j * P0)} = ${money(am1)}$。` }),
+          expr('第 2 次息票后的账面价值 $BV_2$ =', { target: price(Fr, C, 4, j), model: '80a(4) + 1000v^4', anim: [{ do: 'balance', points: bv, max: P0 }], why: '还剩 4 次息票和赎回值。' }),
         ],
       };
     },
@@ -440,14 +441,14 @@ const lessons = [
         timeline: tl(12, [...flowsEvery(1, 12, '70'), { t: 8, amt: '1,000', side: 'down' }, { t: 10, amt: '1,000', side: 'down' }, { t: 12, amt: '1,000', side: 'down' }], { rate: 'j = 5%' }),
         vars: { i: j },
         steps: [
-          expr('假设第 8 年末被赎回，价格 =', { target: p8, model: '70a(8) + 1000v^8' }),
-          expr('假设第 10 年末被赎回：', { target: p10, model: '70a(10) + 1000v^10' }),
-          expr('假设到第 12 年末才还：', { target: p12, model: '70a(12) + 1000v^12' }),
+          expr('假设第 8 年末被赎回，价格 =', { target: p8, model: '70a(8) + 1000v^8', anim: [{ do: 'move', from: 8, to: 0, label: '×v⁸', result: p8 }, { do: 'note', t: 7.45, y: 190, text: money(p8, 0) }] }),
+          expr('假设第 10 年末被赎回：', { target: p10, model: '70a(10) + 1000v^10', anim: [{ do: 'move', from: 10, to: 0, label: '×v¹⁰', result: p10 }, { do: 'note', t: 9.45, y: 190, text: money(p10, 0) }] }),
+          expr('假设到第 12 年末才还：', { target: p12, model: '70a(12) + 1000v^12', anim: [{ do: 'move', from: 12, to: 0, label: '×v¹²', result: p12 }, { do: 'note', t: 11.45, y: 190, text: money(p12, 0) }] }),
           choice('应付哪个价格？', [
             ['最小的那个：第 8 年', true],
             ['最大的那个：第 12 年', false, '付最高价时，若第 8 年就被赎回，收益率会低于 5%。'],
             ['三个的平均', false, '要的是“最坏情况也有 5%”，取最小值。'],
-          ], { why: `溢价债券（7% > 5%），所以最早的赎回日最不利，${money(p8)}。` }),
+          ], { anim: [{ do: 'note', t: 7.45, y: 100, text: '最小 ↓' }, { do: 'answer', t: 0, value: p8 }], why: `溢价债券（7% > 5%），所以最早的赎回日最不利，${money(p8)}。` }),
         ],
       };
     },
@@ -560,9 +561,9 @@ const lessons = [
         timeline: tl(5, bondFlows(5, '70', '1,000'), { focal: 5, rate: 'k = 4%' }),
         vars: { i: j },
         steps: [
-          expr('价格 P（按 6%）=', { target: Pr, model: '70a(5) + 1000v^5' }),
-          expr('第 5 年末的终值（息票按 4% 累积）=', { target: AV, model: '70s(5, 0.04) + 1000', hint: '另一个利率写成 s(n, k)。' }),
-          expr('实际年收益率 =', { target: (AV / Pr) ** (1 / n) - 1, model: '((70s(5, 0.04) + 1000)/(70a(5) + 1000v^5))^(1/5) - 1', unit: 'rate', why: `约 ${pct(round((AV / Pr) ** (1 / n) - 1, 5))}，低于 6%：息票再投资只赚 4%。` }),
+          expr('价格 P（按 6%）=', { target: Pr, model: '70a(5) + 1000v^5', anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5], to: 0, amt: 70, i: j }, { do: 'move', from: 5, to: 0, label: '×v⁵', tone: 'ink', result: Pr }] }),
+          expr('第 5 年末的终值（息票按 4% 累积）=', { target: AV, model: '70s(5, 0.04) + 1000', hint: '另一个利率写成 s(n, k)。', anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5], to: 5, amt: 70, i: k }, { do: 'note', t: 4.5, y: 92, text: '+1,000' }] }),
+          expr('实际年收益率 =', { target: (AV / Pr) ** (1 / n) - 1, model: '((70s(5, 0.04) + 1000)/(70a(5) + 1000v^5))^(1/5) - 1', unit: 'rate', anim: [{ do: 'note', t: 1.5, y: 92, text: 'P(1+y)⁵ = AV' }], why: `约 ${pct(round((AV / Pr) ** (1 / n) - 1, 5))}，低于 6%：息票再投资只赚 4%。` }),
         ],
       };
     },

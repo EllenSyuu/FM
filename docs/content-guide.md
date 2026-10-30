@@ -60,7 +60,7 @@ choice('钱每过一年会怎样变？', [...], { anim: [{ do: 'grow', from: 0, 
 | `stack` | `ts`, `to`, `amt`, `i` | payments carried one by one to a date, running total there |
 | `balance` | `points: [[t, B], …]`, `max?` | a loan balance line falling at each payment |
 | `answer` | `t`, `value`, `unit?` | the circled date fills with the answer and a tick |
-| `note` | `t`, `text` | a short label under the axis |
+| `note` | `t`, `text`, `y?` | a short label under the axis (or at height `y`) |
 
 If the problem has a focal date and its steps carry animations but no `answer`, the last step
 adds one with the last expression step's target. Problems with no animations at all get a
