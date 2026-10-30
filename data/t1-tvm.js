@@ -42,10 +42,11 @@ const lessons = [
             ['乘以 $(1+i) = 1.06$', true],
             ['加上 $1000 \\times 0.06 = 60$，每年都一样', false, '那是单利。复利下第二年的利息是在 1,060 上算的。'],
             ['乘以 $v = 1/1.06$', false, '乘 $v$ 是把钱往**过去**搬；这里是往未来搬。'],
-          ], { hint: '复利 = 利滚利，每年整体放大同一个倍数。' }),
+          ], { hint: '复利 = 利滚利，每年整体放大同一个倍数。', anim: [{ do: 'grow', from: 0, to: 1, start: 1000, mult: 1.06, label: '×1.06' }] }),
           expr('第二步：写出第 4 年末的金额（可以用 i）。', {
             target: 1000 * 1.06 ** 4,
             model: '1000(1+i)^4',
+            anim: [{ do: 'grow', from: 1, to: 4, start: 1060, mult: 1.06, label: '×1.06' }],
             hint: '1,000 往后搬 4 年，乘 4 次 $(1+i)$。',
             why: '$1000(1.06)^4 = 1262.48$。',
           }),
@@ -156,12 +157,12 @@ const lessons = [
           ['$(1+i)$', true],
           ['$v$', false, '200 在比较日之前，要往后（未来）搬，钱会变多。'],
           ['$(1+i)^2$', false, '只差 1 期。'],
-        ]),
+        ], { anim: [{ do: 'move', from: 1, to: 2, label: '×(1+i)', result: 210 }] }),
         choice('t = 4 的 300 搬到 t = 2，要乘什么？', [
           ['$v^2$', true],
           ['$(1+i)^2$', false, '300 在比较日之后，要往前搬，钱变少。'],
           ['$v^4$', false, '那是搬到 t = 0。'],
-        ]),
+        ], { anim: [{ do: 'move', from: 4, to: 2, label: '×v²', tone: 'ink', resultText: '210 + 272.11' }] }),
         expr('合起来，时刻 2 的价值是：', { target: 200 * 1.05 + 300 / 1.05 ** 2, model: '200(1+i) + 300v^2', why: '$210 + 272.11 = 482.11$。' }),
       ],
     }),
@@ -272,10 +273,11 @@ const lessons = [
     ],
     example: r => ({
       text: '名义年利率 8%，按季度复利。有效年利率是多少？',
+      timeline: tl(4, [{ t: 0, amt: '1' }], { focal: 4, unit: 'quarter', rate: 'i⁽⁴⁾ = 8%' }),
       vars: {},
       steps: [
-        expr('每个季度的利率是：', { target: 0.02, model: '0.08/4', unit: 'rate' }),
-        expr('一年 4 个季度，有效年利率 i =', { target: 1.02 ** 4 - 1, model: '(1+0.08/4)^4 - 1', unit: 'rate', why: '$1.02^4 - 1 = 8.243\\%$，比 8% 略大。' }),
+        expr('每个季度的利率是：', { target: 0.02, model: '0.08/4', unit: 'rate', anim: [{ do: 'grow', from: 0, to: 1, start: 1, mult: 1.02, label: '×1.02', unit: 'number' }] }),
+        expr('一年 4 个季度，有效年利率 i =', { target: 1.02 ** 4 - 1, model: '(1+0.08/4)^4 - 1', unit: 'rate', anim: [{ do: 'grow', from: 1, to: 4, start: 1.02, mult: 1.02, label: '×1.02', unit: 'number' }, { do: 'answer', t: 4, value: 1.02 ** 4 - 1, unit: 'rate' }], why: '$1.02^4 - 1 = 8.243\\%$，比 8% 略大。' }),
       ],
     }),
     drills: [
@@ -365,9 +367,9 @@ const lessons = [
       timeline: tl(1, [{ t: 0, amt: '950', side: 'down' }, { t: 1, amt: '1,000' }], {}),
       vars: {},
       steps: [
-        expr('利息是多少？', { target: 50, model: '1000 - 950' }),
-        expr('d = 利息 ÷ 期末金额 =', { target: 0.05, model: '50/1000', unit: 'rate' }),
-        expr('i = 利息 ÷ 期初金额 =', { target: 50 / 950, model: '50/950', unit: 'rate', why: '也可以用 $i = d/(1-d) = 0.05/0.95$。' }),
+        expr('利息是多少？', { target: 50, model: '1000 - 950', anim: [{ do: 'note', t: 0.5, text: '利息 50' }] }),
+        expr('d = 利息 ÷ 期末金额 =', { target: 0.05, model: '50/1000', unit: 'rate', anim: [{ do: 'discount', from: 1, to: 0, start: 1000, mult: 0.95, label: '×(1−d)' }] }),
+        expr('i = 利息 ÷ 期初金额 =', { target: 50 / 950, model: '50/950', unit: 'rate', anim: [{ do: 'grow', from: 0, to: 1, start: 950, mult: 1000 / 950, label: '×(1+i)' }], why: '也可以用 $i = d/(1-d) = 0.05/0.95$。' }),
       ],
     }),
     drills: [
@@ -434,10 +436,11 @@ const lessons = [
     ],
     example: r => ({
       text: '利息力 $\\delta_t = 0.02t$。时刻 0 存 100，时刻 5 值多少？',
+      timeline: tl(5, [{ t: 0, amt: '100' }], { focal: 5, rate: 'δₜ = 0.02t' }),
       vars: {},
       steps: [
-        expr('先积分：$\\int_0^5 0.02s\\,ds$ =', { target: 0.25, model: '0.02*5^2/2', unit: 'number', hint: '$\\int_0^t ks\\,ds = kt^2/2$。' }),
-        expr('时刻 5 的金额 =', { target: 100 * Math.exp(0.25), model: '100 exp(0.25)', why: '$100e^{0.25} = 128.40$。' }),
+        expr('先积分：$\\int_0^5 0.02s\\,ds$ =', { target: 0.25, model: '0.02*5^2/2', unit: 'number', anim: [{ do: 'note', t: 2.5, text: '∫ = 0.25' }], hint: '$\\int_0^t ks\\,ds = kt^2/2$。' }),
+        expr('时刻 5 的金额 =', { target: 100 * Math.exp(0.25), model: '100 exp(0.25)', anim: [{ do: 'move', from: 0, to: 5, label: '× e^0.25' }], why: '$100e^{0.25} = 128.40$。' }),
       ],
     }),
     drills: [
@@ -503,9 +506,10 @@ const lessons = [
     ],
     example: r => ({
       text: '利率 6%，通胀 2%。实际利率是多少？',
+      timeline: tl(1, [{ t: 0, amt: '1.00' }], { focal: 1, rate: 'i = 6% · f = 2%' }),
       vars: {},
       steps: [
-        choice('哪个式子对？', [['$(1.06/1.02) - 1$', true], ['$0.06 - 0.02$', false, '这是近似值，考试要精确值。'], ['$1.06 \\times 1.02 - 1$', false]]),
+        choice('哪个式子对？', [['$(1.06/1.02) - 1$', true], ['$0.06 - 0.02$', false, '这是近似值，考试要精确值。'], ['$1.06 \\times 1.02 - 1$', false]], { anim: [{ do: 'move', from: 0, to: 1, label: '×1.06 ÷ 1.02', resultText: '1.0392' }] }),
         expr('r =', { target: 1.06 / 1.02 - 1, model: '1.06/1.02 - 1', unit: 'rate', why: '3.92%，比 4% 略小。' }),
       ],
     }),

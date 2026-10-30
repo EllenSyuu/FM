@@ -3,25 +3,62 @@ import { rng } from '../data/kit.js';
 import { read, sameValue, money, toTex } from './expr.js';
 import { timeline, drawPicks } from './timeline.js';
 import { growthPlate, mountGrowth } from './growth.js';
+import { makeStage, defaultFinish } from './stage.js';
 import { heroPlate, tickMark, crossMark, monthSketch, startBirds } from './art.js';
 import { dayKey, addDays, grade, dueToday, streak, isLearned, LEARNED_BOX, MAX_BOX } from './srs.js';
 import { studyPlan, REVIEW_DAYS } from './plan.js';
 import * as store from './store.js';
+import { aggregateLog, sumDevices } from './merge.js';
+import * as sync from './sync.js';
+import { initPwa, installState, promptInstall } from './pwa.js';
 
 /* ---------------------------------------------------------------- state */
 
 let S = store.load();
-const persist = () => store.save(S);
+const DEV = store.deviceId();
+// Every change is saved here at once and synced to other devices a few seconds later.
+const persist = () => {
+  S.log = aggregateLog(S.devlog);
+  store.save(S);
+  sync.schedule();
+};
 const app = document.getElementById('app');
 const lessonById = Object.fromEntries(LESSONS.map(l => [l.id, l]));
 const drillById = Object.fromEntries(DRILLS.map(d => [d.id, d]));
 const topicById = Object.fromEntries(TOPICS.map(t => [t.id, t]));
 const today = () => dayKey();
-const logToday = () => {
-  const k = today();
-  S.log[k] = S.log[k] || { solved: 0, clean: 0, lessons: 0 };
-  return S.log[k];
+/* This device's counters for today and for a lesson; counters only grow (see merge.js). */
+const COUNT0 = { solved: 0, clean: 0, lessons: 0, steps: 0, first: 0 };
+const bump = (map, key, add) => {
+  map[key] = map[key] || {};
+  const e = { ...COUNT0, ...(map[key][DEV] || {}) };
+  for (const [k, v] of Object.entries(add)) e[k] = k === 'done' ? v : (e[k] || 0) + v;
+  e.t = Date.now();
+  map[key][DEV] = e;
 };
+const logToday = add => bump(S.devlog, today(), add);
+const isLearned_ = id => !!(S.lessons[id] && !S.lessons[id].del);
+const learnedOn = id => (isLearned_(id) ? S.lessons[id].at : null);
+const lessonStats = id => sumDevices({ x: (S.devstat || {})[id] || {} }).x;
+const pct = (a, b) => (b ? Math.round((100 * a) / b) : null);
+
+/* A problem's saved progress (steps answered so far), keyed by where it is played. */
+const saveProg = (key, data) => {
+  S.prog[key] = { ...(S.prog[key] || {}), ...data, t: Date.now() };
+  persist();
+};
+/* Called after every attempt in any problem. */
+function progressHandler(key, lessonId, extra = {}) {
+  return (steps, ev) => {
+    saveProg(key, { ...extra, steps, done: steps.every(x => x.done) });
+    if (ev.finished) {
+      const add = { steps: 1, first: ev.first ? 1 : 0 };
+      logToday(add);
+      bump(S.devstat, lessonId, add);
+      persist();
+    }
+  };
+}
 
 /* ---------------------------------------------------------------- text */
 
@@ -100,8 +137,9 @@ window.addEventListener('hashchange', route);
 
 /* ---------------------------------------------------------------- numbers for the home page */
 
-const allDrillIds = () => DRILLS.filter(d => S.lessons[d.lesson]).map(d => d.id);
-const plan = () => studyPlan({ lessonIds: LESSONS.map(l => l.id), learned: S.lessons, today: today(), examDate: S.settings.examDate });
+const allDrillIds = () => DRILLS.filter(d => isLearned_(d.lesson)).map(d => d.id);
+const learnedMap = () => Object.fromEntries(LESSONS.filter(l => isLearned_(l.id)).map(l => [l.id, learnedOn(l.id)]));
+const plan = () => studyPlan({ lessonIds: LESSONS.map(l => l.id), learned: learnedMap(), today: today(), examDate: S.settings.examDate });
 const dueIds = () => dueToday(allDrillIds(), S.cards, { cap: S.settings.reviewCap, today: today() });
 
 function last30() {
@@ -109,7 +147,7 @@ function last30() {
   for (let k = 29; k >= 0; k--) {
     const key = addDays(today(), -k);
     const l = S.log[key];
-    out.push({ key, count: l ? l.solved + 3 * (l.lessons || 0) : 0, done: !!(l && l.done), today: k === 0 });
+    out.push({ key, count: l ? l.solved + l.steps / 3 + 3 * (l.lessons || 0) : 0, done: !!(l && l.done), today: k === 0 });
   }
   return out;
 }
@@ -126,6 +164,7 @@ function renderHome() {
   const p = plan();
   const due = dueIds();
   const sk = streak(S.log, today());
+  const acc = sumDevices({ all: Object.assign({}, ...Object.entries(S.devstat || {}).flatMap(([l, devs]) => Object.entries(devs).map(([dv, e]) => ({ [`${l}:${dv}`]: e })))) }).all;
   const next = p.next ? lessonById[p.next] : null;
   const learnedDrills = DRILLS.filter(d => isLearned(S.cards[d.id])).length;
   const boxes = Array.from({ length: MAX_BOX + 1 }, (_, b) => DRILLS.filter(d => S.cards[d.id] && S.cards[d.id].box === b).length);
@@ -145,6 +184,7 @@ function renderHome() {
           <div><span class="big">${p.done}<small>/${LESSONS.length}</small></span><span class="lab">lessons<br><i>已学课</i></span></div>
           <div><span class="big">${p.weeksLeft}</span><span class="lab">weeks left<br><i>距考试周数</i></span></div>
         </div>
+        ${resumeLine()}
         ${next ? `<p class="next-line"><span class="kicker">Next lesson</span><a href="#/lesson/${next.id}">${rich(next.zh)}</a></p>` : `<p class="done-line"><span class="hand">All learned!</span> 全部课程学完了，接下来以复习为主。</p>`}
         <div class="actions">
           ${next ? `<a class="btn" href="#/lesson/${next.id}">学下一课 <span aria-hidden="true">→</span></a>` : ''}
@@ -161,7 +201,7 @@ function renderHome() {
 
   <section id="syllabus">
     <h2 class="numbered-heading draw">The syllabus</h2>
-    <p class="chapter-lede">SOA Exam FM 的五个部分，括号里是每部分在考试中所占的比重。每一课都是：先读懂（画时间轴、看公式从哪里来），再跟着做一道，最后自己练。</p>
+    <p class="chapter-lede">按 SOA 考纲的五个部分，橙色是考试比重。</p>
     <div class="topics">
       ${TOPICS.map(t => topicCard(t)).join('')}
     </div>
@@ -169,12 +209,12 @@ function renderHome() {
 
   <section id="progress">
     <h2 class="numbered-heading draw">Progress</h2>
-    <p class="chapter-lede">学完一课，它的题型就进入复习：一次做对（没看答案）就升一格，下次在 1、2、4、7、15、30、60 天后再出；需要看答案就回到 1 号盒子，明天再来。到 5 号盒子算掌握。</p>
+    <p class="chapter-lede">一次做对就升一格，看了答案就明天再来。</p>
     <div class="progress-grid">
       <div class="engraved">
         <div><span class="big">${p.done}</span><span class="lab">lessons · 已学课</span></div>
         <div><span class="big">${learnedDrills}<small>/${DRILLS.length}</small></span><span class="lab">mastered · 掌握的题型</span></div>
-        <div><span class="big">${sk}</span><span class="lab">days in a row · 连续天数</span></div>
+        <div><span class="big">${acc.steps ? `${pct(acc.first, acc.steps)}<small>%</small>` : '—'}</span><span class="lab">first-try accuracy · 一次答对</span></div>
       </div>
       <figure class="month-wrap draw">
         ${monthSketch(last30())}
@@ -201,15 +241,45 @@ function renderHome() {
   observeDraw();
 }
 
+/* "Pick up where you left off": the most recent unfinished example or drill. */
+function resumeLine() {
+  const open = Object.entries(S.prog || {})
+    .filter(([k, v]) => k !== 'session' && v && !v.done && v.steps && v.steps.some(x => x.done))
+    .sort((a, b) => b[1].t - a[1].t)[0];
+  if (!open) return '';
+  const [key, v] = open;
+  const [kind, id] = key.split('/');
+  const item = kind === 'ex' ? lessonById[id] : drillById[id];
+  if (!item) return '';
+  const k = v.steps.filter(x => x.done).length;
+  const href = kind === 'ex' ? `#/lesson/${id}` : `#/drill/${id}`;
+  return `<p class="next-line resume"><span class="kicker">Continue · 接着做</span><a href="${href}">${rich(item.zh)} <i>${kind === 'ex' ? '例题' : '练习'}第 ${k + 1} 步</i></a></p>`;
+}
+
 function paceNote(p, sk) {
   if (!p.left) return '全部学完 · 每天清空复习';
   if (p.inReview) return `考前复习期 · 还有 ${p.left} 课没学`;
   return `每周 ${p.perWeek} 课 · 本周已学 ${p.thisWeek} 课${sk ? ` · 连续 ${sk} 天` : ''}`;
 }
 
+/* "例题 2/3 · 正确率 83%" under a lesson in the syllabus. */
+function lessonMeta(l) {
+  const parts = [];
+  const ex = S.prog[`ex/${l.id}`];
+  const n = l.example(rng(7)).steps.length;
+  if (ex && ex.steps) {
+    const k = ex.steps.filter(x => x.done).length;
+    if (k) parts.push(k >= n ? '例题完成' : `例题 ${k}/${n} 步`);
+  }
+  const st = lessonStats(l.id);
+  if (st.steps) parts.push(`正确率 ${pct(st.first, st.steps)}% · ${st.steps} 步`);
+  if (isLearned_(l.id)) parts.unshift(`学于 ${learnedOn(l.id).slice(5).replace('-', '/')}`);
+  return parts.length ? `<em class="lmeta">${parts.join(' · ')}</em>` : '';
+}
+
 function topicCard(t) {
   const ls = t.lessons;
-  const learned = ls.filter(l => S.lessons[l.id]).length;
+  const learned = ls.filter(l => isLearned_(l.id)).length;
   const nextId = plan().next;
   return `<article class="topic draw">
     <header>
@@ -225,9 +295,12 @@ function topicCard(t) {
       ls.length
         ? `<ol class="lessons">${ls
             .map(
-              (l, k) => `<li class="${S.lessons[l.id] ? 'learned' : ''} ${l.id === nextId ? 'is-next' : ''}">
-          <a href="#/lesson/${l.id}"><span class="lno">${t.no}.${k + 1}</span><span class="lname">${rich(l.zh)}<i>${esc(l.en)}</i></span>
-          <span class="lmark" aria-label="${S.lessons[l.id] ? 'learned' : ''}">${S.lessons[l.id] ? tickMark() : l.id === nextId ? '<span class="hand">next</span>' : ''}</span></a></li>`,
+              (l, k) => {
+                const done = isLearned_(l.id);
+                return `<li class="${done ? 'learned' : ''} ${l.id === nextId ? 'is-next' : ''}">
+          <a href="#/lesson/${l.id}"><span class="lno">${t.no}.${k + 1}</span><span class="lname">${rich(l.zh)}<i>${esc(l.en)}</i>${lessonMeta(l)}</span>
+          <span class="lmark" aria-label="${done ? 'learned' : ''}">${done ? tickMark() : l.id === nextId ? '<span class="hand">next</span>' : ''}</span></a></li>`;
+              },
             )
             .join('')}</ol>`
         : `<p class="note">这一部分的课程还在写。</p>`
@@ -268,7 +341,7 @@ function renderLesson(l) {
   const flat = LESSONS.findIndex(x => x.id === l.id);
   const prev = LESSONS[flat - 1];
   const nxt = LESSONS[flat + 1];
-  const learned = !!S.lessons[l.id];
+  const learned = isLearned_(l.id);
   app.innerHTML = `
   <article class="lesson">
     <a class="back" href="#/">← Syllabus</a>
@@ -292,7 +365,7 @@ function renderLesson(l) {
         ${l.drills.map(d => `<li><a href="#/drill/${d.id}"><span class="dname">${rich(d.zh)}</span>${pips(S.cards[d.id])}<span class="go">练一题 →</span></a></li>`).join('')}
       </ul>
       <div class="actions">
-        ${learned ? `<p class="done-line">${tickMark()}<span>这一课学过了（${esc(S.lessons[l.id])}）。</span></p>` : `<button class="btn" data-act="learned">这一课学完了 ✓</button>`}
+        ${learned ? `<p class="done-line">${tickMark()}<span>这一课学过了（${esc(learnedOn(l.id))}）。</span><button class="link" data-act="unlearn">标记为未学</button></p>` : `<button class="btn" data-act="learned">这一课学完了 ✓</button>`}
         <a class="btn ghost" href="#/practice">去复习</a>
       </div>
     </section>
@@ -305,13 +378,35 @@ function renderLesson(l) {
   inkIn();
   observeDraw();
   mountGrowth(app);
-  mountProblem(app.querySelector('#example'), l.example(rng(7)), { label: 'Example' });
+  const exKey = `ex/${l.id}`;
+  const exEl = app.querySelector('#example');
+  const playExample = saved =>
+    mountProblem(exEl, l.example(rng(7)), {
+      label: 'Example',
+      saved,
+      onProgress: progressHandler(exKey, l.id),
+      onDone: (res, el) => {
+        el.insertAdjacentHTML('beforeend', `<div class="actions"><button class="link" data-redo>重新做一遍例题</button></div>`);
+        el.querySelector('[data-redo]').addEventListener('click', () => {
+          saveProg(exKey, { steps: [], done: false });
+          playExample(null);
+        });
+      },
+    });
+  playExample(S.prog[exKey] && S.prog[exKey].steps && S.prog[exKey].steps.length ? S.prog[exKey].steps : null);
+  const un = app.querySelector('[data-act="unlearn"]');
+  if (un)
+    un.addEventListener('click', () => {
+      S.lessons[l.id] = { del: true, t: Date.now() };
+      persist();
+      renderLesson(l);
+    });
   const btn = app.querySelector('[data-act="learned"]');
   if (btn)
     btn.addEventListener('click', () => {
-      S.lessons[l.id] = today();
-      for (const d of l.drills) if (!S.cards[d.id]) S.cards[d.id] = { box: 0, due: today(), right: 0, wrong: 0, last: null };
-      logToday().lessons = (logToday().lessons || 0) + 1;
+      S.lessons[l.id] = { at: today(), t: Date.now() };
+      for (const d of l.drills) if (!S.cards[d.id]) S.cards[d.id] = { box: 0, due: today(), right: 0, wrong: 0, last: null, t: Date.now() };
+      logToday({ lessons: 1 });
       persist();
       renderLesson(l);
       app.querySelector('.drills').scrollIntoView({ block: 'start' });
@@ -324,22 +419,54 @@ const pips = c => `<span class="pips" aria-label="box ${c ? c.box : 0}">${Array.
 
 const KEYS = ['v', 'i', '^', '(', ')', '×', '÷', '+', '−', 'a(', 'ä(', 's(', 'ln(', '←'];
 
-function mountProblem(root, prob, { onDone, label = '' } = {}) {
+/*
+ * Plays one problem step by step. The timeline is a stage: each right answer makes the money
+ * on it move the way the step describes (step.anim, see js/stage.js); a wrong answer draws
+ * that part in grey, shakes it and opens the hint.
+ *
+ * Progress is reported after every attempt (opts.onProgress), so the page can save it at
+ * once; opts.saved restores a problem where it was left, finished steps shown as answered.
+ */
+function mountProblem(root, prob, { onDone, onProgress, saved = null, label = '' } = {}) {
   const vars = prob.vars || {};
   const steps = prob.steps;
-  const st = steps.map(() => ({ wrong: 0, revealed: false, done: false }));
-  let at = 0;
+  const st = steps.map((_, k) => ({ wrong: 0, revealed: false, done: false, ...((saved && saved[k]) || {}) }));
   const hasFocal = prob.timeline && prob.timeline.focal !== undefined && prob.timeline.focal !== null;
+  const annotated = steps.some(s => s.anim && s.anim.length);
+  const lastExpr = [...steps].reverse().find(s => s.kind === 'expr');
+  let restoring = false;
+
+  // What the timeline does when step k is answered.
+  const animFor = k => {
+    const s = steps[k];
+    let a = s.anim ? [...s.anim] : [];
+    if (k === steps.length - 1 && hasFocal && lastExpr) {
+      if (!annotated) a = defaultFinish(prob, lastExpr.target, lastExpr.unit);
+      else if (!steps.some(x => (x.anim || []).some(y => y.do === 'answer'))) a.push({ do: 'answer', t: prob.timeline.focal, value: lastExpr.target, unit: lastExpr.unit });
+    }
+    return a;
+  };
 
   root.innerHTML = `
     ${label ? `<p class="kicker">${esc(label)}</p>` : ''}
     <p class="ptext">${rich(prob.text)}</p>
     ${varsLine(vars)}
-    ${prob.timeline ? `<figure class="tl-wrap plate">${timeline(prob.timeline)}</figure>` : ''}
+    ${prob.timeline ? `<figure class="tl-wrap plate stage-wrap">${timeline(prob.timeline, { stage: true })}</figure>` : ''}
     <ol class="steps"></ol>
     <div class="pdone"></div>`;
   const list = root.querySelector('.steps');
+  const stage = prob.timeline ? makeStage(root.querySelector('.stage-wrap svg')) : null;
   inkIn(root);
+
+  const report = (k, finished) => {
+    if (onProgress) onProgress(st.map(x => ({ ...x })), { step: k, finished, first: finished && !st[k].wrong && !st[k].revealed });
+  };
+  const play = (k, opts) => stage && stage.run(animFor(k), opts);
+  const oops = (k, li) => {
+    if (stage) stage.wrong(animFor(k));
+    const hb = li.querySelector('[data-hint]');
+    if (hb && !hb.hidden) hb.click();
+  };
 
   const showStep = k => {
     const s = steps[k];
@@ -353,33 +480,51 @@ function mountProblem(root, prob, { onDone, label = '' } = {}) {
       st[k].done = true;
       li.classList.add('is-done');
       if (s.why) fb.insertAdjacentHTML('beforeend', `<p class="why">${rich(s.why)}</p>`);
-      at = k + 1;
-      if (at < steps.length) setTimeout(() => showStep(at), 260);
-      else complete();
+      if (!restoring) {
+        report(k, true);
+        play(k);
+      }
+      const nextK = k + 1;
+      if (nextK < steps.length) {
+        if (restoring && st[nextK].done) showStep(nextK);
+        else setTimeout(() => showStep(nextK), restoring ? 0 : 260);
+      } else complete();
+    };
+    const tried = () => {
+      st[k].wrong++;
+      report(k, false);
+      oops(k, li);
     };
 
     if (s.kind === 'choice') {
-      const order = s.options.map((o, j) => j).sort(() => Math.random() - 0.5);
+      const order = s.options.map((o, j) => j).sort((a, b) => hash(s.ask + s.options[a].text) - hash(s.ask + s.options[b].text));
       body.innerHTML = `<div class="options">${order.map((j, n) => `<button class="opt" data-j="${j}"><b>${'ABCDE'[n]}</b><span>${rich(s.options[j].text)}</span></button>`).join('')}</div>${hintBtn(s)}`;
+      const right = () => [...body.querySelectorAll('.opt')].find(x => s.options[+x.dataset.j].ok);
+      const lock = () => body.querySelectorAll('.opt').forEach(x => (x.disabled = true));
+      if (st[k].done) {
+        right().classList.add('right');
+        lock();
+        fb.innerHTML = st[k].revealed ? `<p class="why">正确的是：${rich(s.options.find(o => o.ok).text)}</p>` : verdict(true, '对。');
+        return finish();
+      }
       body.querySelectorAll('.opt').forEach(b =>
         b.addEventListener('click', () => {
           if (st[k].done) return;
           const o = s.options[+b.dataset.j];
           if (o.ok) {
             b.classList.add('right');
-            body.querySelectorAll('.opt').forEach(x => (x.disabled = true));
+            lock();
             fb.innerHTML = verdict(true, st[k].wrong ? '这次对了。' : '对。');
             finish();
           } else {
             b.classList.add('wrong');
             b.disabled = true;
-            st[k].wrong++;
             fb.innerHTML = verdict(false, o.why ? rich(o.why) : '再想想。');
+            tried();
             if (st[k].wrong >= 2) {
               st[k].revealed = true;
-              const r = [...body.querySelectorAll('.opt')].find(x => s.options[+x.dataset.j].ok);
-              r.classList.add('right');
-              body.querySelectorAll('.opt').forEach(x => (x.disabled = true));
+              right().classList.add('right');
+              lock();
               fb.insertAdjacentHTML('beforeend', `<p class="why">正确的是：${rich(s.options.find(o2 => o2.ok).text)}</p>`);
               finish();
             }
@@ -405,6 +550,23 @@ function mountProblem(root, prob, { onDone, label = '' } = {}) {
         else if (r.ok) pre.innerHTML = `${r.tex ? K(r.tex) : ''}<span class="eq">= ${esc(fmt(r.value, s.unit))}</span>`;
         else pre.innerHTML = `<span class="err">${esc(r.error)}</span>`;
       };
+      const close = () => {
+        inp.disabled = true;
+        body.querySelector('.keys').remove();
+        body.querySelector('.expr .actions').remove();
+      };
+      if (st[k].done) {
+        inp.value = st[k].typed || s.model;
+        update();
+        close();
+        fb.innerHTML = st[k].revealed ? modelLine(s, '思路') : verdict(true, `= ${esc(fmt(s.target, s.unit))}`) + modelLine(s, '一种标准写法');
+        return finish();
+      }
+      if (st[k].typed) {
+        inp.value = st[k].typed;
+        update();
+      }
+      if (st[k].wrong >= S.settings.revealAfter) show.hidden = false;
       inp.addEventListener('input', update);
       body.querySelectorAll('.keys button').forEach(b =>
         b.addEventListener('click', () => {
@@ -432,6 +594,7 @@ function mountProblem(root, prob, { onDone, label = '' } = {}) {
           fb.innerHTML = verdict(false, esc(r.error));
           return;
         }
+        st[k].typed = inp.value;
         let ok = sameValue(r.value, s.target);
         let extra = '';
         if (!ok && s.unit === 'rate' && sameValue(r.value / 100, s.target)) {
@@ -439,14 +602,12 @@ function mountProblem(root, prob, { onDone, label = '' } = {}) {
           extra = '（利率记得写成 0.05 或 5%。）';
         }
         if (ok) {
-          inp.disabled = true;
-          body.querySelector('.keys').remove();
-          body.querySelector('.expr .actions').remove();
+          close();
           fb.innerHTML = verdict(true, `= ${esc(fmt(s.target, s.unit))}${extra}`) + modelLine(s, '一种标准写法');
           finish();
         } else {
-          st[k].wrong++;
-          fb.innerHTML = verdict(false, `你的式子等于 ${esc(fmt(r.value, s.unit))}，还不对。${s.hint ? '可以先看看提示。' : '再想想每笔钱离那一刻差几期。'}`);
+          fb.innerHTML = verdict(false, `你的式子等于 ${esc(fmt(r.value, s.unit))}，还不对。`);
+          tried();
           if (st[k].wrong >= S.settings.revealAfter) show.hidden = false;
         }
       };
@@ -461,21 +622,32 @@ function mountProblem(root, prob, { onDone, label = '' } = {}) {
         st[k].revealed = true;
         inp.value = s.model;
         update();
-        inp.disabled = true;
-        body.querySelector('.keys').remove();
-        body.querySelector('.expr .actions').remove();
+        close();
         fb.innerHTML = `<div class="verdict"><p class="v-main">思路是这样：</p></div>` + modelLine(s, '');
         finish();
       });
-      setTimeout(() => inp.focus({ preventScroll: true }), 50);
+      if (!restoring) setTimeout(() => inp.focus({ preventScroll: true }), 50);
     }
 
     if (s.kind === 'place') {
       const n = s.n - 1;
-      body.innerHTML = `<figure class="tl-wrap plate placing">${timeline({ n, flows: [] }, { place: true })}</figure><p class="note">点时间轴上的刻度放上付款，再点一下取消。</p><div class="actions"><button class="btn" data-check>检查</button>${hintBtn(s)}</div>`;
+      body.innerHTML = `<figure class="tl-wrap plate placing">${timeline({ n, flows: [] }, { place: true, stage: true })}</figure><p class="note">点时间轴上的刻度放上付款，再点一下取消。</p><div class="actions"><button class="btn" data-check>检查</button>${hintBtn(s)}</div>`;
       const svg = body.querySelector('svg');
+      const pstage = makeStage(svg);
       const picks = new Set();
+      const want = [...new Set(s.answer)].sort((a, b) => a - b);
       inkIn(body);
+      const land = instant => {
+        drawPicks(svg, new Set(), n);
+        body.querySelector('.actions').remove();
+        body.querySelector('.note').remove();
+        pstage.run(want.map(t => ({ do: 'drop', t, ms: 300 })), { instant });
+      };
+      if (st[k].done) {
+        land(true);
+        fb.innerHTML = verdict(true, `付款在 t = ${want.join(', ')}。`);
+        return finish();
+      }
       svg.querySelectorAll('.tl-hit').forEach(h =>
         h.addEventListener('click', () => {
           if (st[k].done) return;
@@ -486,21 +658,18 @@ function mountProblem(root, prob, { onDone, label = '' } = {}) {
       );
       body.querySelector('[data-check]').addEventListener('click', () => {
         if (st[k].done) return;
-        const want = new Set(s.answer);
-        const ok = picks.size === want.size && [...picks].every(t => want.has(t));
+        const ok = picks.size === want.length && want.every(t => picks.has(t));
         if (ok) {
-          body.querySelector('[data-check]').disabled = true;
-          fb.innerHTML = verdict(true, `付款在 t = ${[...want].sort((a, b) => a - b).join(', ')}。`);
+          land(false);
+          fb.innerHTML = verdict(true, `付款在 t = ${want.join(', ')}。`);
           finish();
         } else {
-          st[k].wrong++;
-          fb.innerHTML = verdict(false, `还不对。${st[k].wrong >= 2 ? `应该是 t = ${[...want].sort((a, b) => a - b).join(', ')}。` : '再读一遍题目里的“年初/年末”。'}`);
+          fb.innerHTML = verdict(false, `还不对。${st[k].wrong >= 1 ? `应该是 t = ${want.join(', ')}。` : '再读一遍题目里的“年初/年末”。'}`);
+          tried();
+          pstage.wrong([]);
           if (st[k].wrong >= 2) {
             st[k].revealed = true;
-            picks.clear();
-            want.forEach(t => picks.add(t));
-            drawPicks(svg, picks, n);
-            body.querySelector('[data-check]').disabled = true;
+            land(false);
             finish();
           }
         }
@@ -513,24 +682,30 @@ function mountProblem(root, prob, { onDone, label = '' } = {}) {
         hb.hidden = true;
         fb.insertAdjacentHTML('afterbegin', `<p class="hint"><span class="hand">hint</span> ${rich(s.hint)}</p>`);
       });
-    li.scrollIntoView({ block: 'nearest', behavior: k ? 'smooth' : 'auto' });
+    if (!restoring) li.scrollIntoView({ block: 'nearest', behavior: k ? 'smooth' : 'auto' });
   };
 
   const complete = () => {
     const clean = st.every(x => !x.revealed);
     const wrongs = st.reduce((a, x) => a + x.wrong, 0);
-    if (hasFocal) {
-      const fig = root.querySelector('.tl-wrap');
-      fig.classList.remove('on');
-      fig.innerHTML = timeline(prob.timeline, { moves: true }) + '<figcaption>每一笔钱搬到问号那一刻，乘上它路过的期数。</figcaption>';
-      inkIn(root);
-    }
     root.querySelector('.pdone').innerHTML = `<div class="summary-line ${clean ? 'is-right' : ''}">${clean ? tickMark() : crossMark()}<p>${clean ? (wrongs ? '做出来了，中间想错了一下，没关系。' : '一次就对。') : '这次看了答案。这个题型明天会再出现。'}</p></div>`;
-    if (onDone) onDone({ clean, wrongs }, root.querySelector('.pdone'));
+    if (onDone) onDone({ clean, wrongs, restored: restoring }, root.querySelector('.pdone'));
   };
 
-  showStep(0);
+  // Replay finished steps instantly (state and timeline), then continue live.
+  if (st[0].done) {
+    restoring = true;
+    showStep(0);
+    restoring = false;
+    if (stage) for (let k = 0; k < steps.length && st[k].done; k++) stage.run(animFor(k), { instant: true });
+  } else showStep(0);
 }
+
+const hash = s => {
+  let h = 2166136261;
+  for (let k = 0; k < s.length; k++) h = Math.imul(h ^ s.charCodeAt(k), 16777619);
+  return h >>> 0;
+};
 
 /* The quantities a learner may type in this problem, e.g. "i = 5%   P = 1,295.05". */
 const RATE_NAMES = /^(i|j|k|g|d|r|f|delta|s\d+|f\d+)$/;
@@ -570,27 +745,33 @@ function renderDrill(d) {
     <header class="drill-head"><p class="eyebrow">Drill · ${esc(topicById[d.topic].en)}</p><h1 class="medium-heading">${rich(d.zh)}</h1>${pips(S.cards[d.id])}</header>
     <div class="card sheet" id="drill"></div>
   </section>`;
-  const play = () =>
-    mountProblem(app.querySelector('#drill'), d.gen(rng((Math.random() * 2 ** 31) | 0)), {
+  const key = `dr/${d.id}`;
+  const play = fresh => {
+    const p = S.prog[key];
+    const resume = !fresh && p && !p.done && p.seed;
+    const seed = resume ? p.seed : (Math.random() * 2 ** 31) | 0;
+    if (!resume) saveProg(key, { seed, steps: [], done: false });
+    mountProblem(app.querySelector('#drill'), d.gen(rng(seed)), {
+      saved: resume ? p.steps : null,
+      onProgress: progressHandler(key, d.lesson, { seed }),
       onDone: (res, el) => {
-        record(d, res);
+        if (!res.restored) record(d, res);
         el.insertAdjacentHTML('beforeend', `<div class="actions"><button class="btn" data-again>再来一题 →</button><a class="btn ghost" href="#/lesson/${l.id}">回到课文</a></div>`);
         el.querySelector('[data-again]').addEventListener('click', () => {
-          play();
+          play(true);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         });
       },
     });
-  play();
+  };
+  play(false);
 }
 
 /* Grade a drill only when its lesson has been learned (free play before that is just practice). */
 function record(d, { clean }) {
-  const lt = logToday();
-  lt.solved += 1;
-  if (clean) lt.clean += 1;
-  if (S.lessons[d.lesson]) S.cards[d.id] = grade(S.cards[d.id], clean, today());
-  if (!dueIds().length && S.lessons[d.lesson]) lt.done = true;
+  logToday({ solved: 1, clean: clean ? 1 : 0 });
+  if (isLearned_(d.lesson)) S.cards[d.id] = grade(S.cards[d.id], clean, today());
+  if (!dueIds().length && isLearned_(d.lesson)) logToday({ done: true });
   persist();
 }
 
@@ -598,8 +779,15 @@ function record(d, { clean }) {
 
 let queue = null;
 
-function renderPractice() {
+/* Today's review keeps its place: leave mid-way (or close the tab) and it resumes here. */
+async function renderPractice(fresh = false) {
   setView('practice', 'Review');
+  const saved = S.prog.session;
+  if (!fresh && saved && saved.day === today() && saved.k < saved.ids.length && saved.ids.every(id => drillById[id])) {
+    queue = saved;
+    return nextInQueue();
+  }
+  await syncFirst();
   let ids = dueIds();
   let mode = 'due';
   if (!ids.length) {
@@ -607,20 +795,34 @@ function renderPractice() {
     mode = learned.length ? 'free' : 'none';
     ids = learned.sort(() => Math.random() - 0.5).slice(0, 5);
   }
-  queue = { ids, k: 0, clean: 0, mode };
   if (mode === 'none') {
     const p = plan();
     app.innerHTML = `<section class="session"><div class="card sheet"><p class="kicker">Review</p><h1 class="medium-heading">还没有要复习的题</h1><p>先学一课：学完以后，它的题型就会出现在这里。</p><div class="actions">${p.next ? `<a class="btn" href="#/lesson/${p.next}">去学 ${rich(lessonById[p.next].zh)} →</a>` : ''}</div></div></section>`;
     return;
   }
+  queue = { day: today(), ids, k: 0, clean: 0, mode, seed: 0, steps: [] };
   nextInQueue();
 }
 
+const saveQueue = () => {
+  S.prog.session = { ...queue, t: Date.now() };
+  persist();
+};
+
 function nextInQueue() {
   const q = queue;
-  if (q.k >= q.ids.length) return renderSummary();
+  if (q.k >= q.ids.length) {
+    saveQueue();
+    return renderSummary();
+  }
   const d = drillById[q.ids[q.k]];
   const l = lessonById[d.lesson];
+  const resume = q.seed && q.steps && q.steps.some(x => x.done);
+  if (!q.seed) {
+    q.seed = (Math.random() * 2 ** 31) | 0;
+    q.steps = [];
+  }
+  saveQueue();
   app.innerHTML = `
   <section class="session">
     <div class="topline">
@@ -632,14 +834,32 @@ function nextInQueue() {
     <h2 class="small-heading">${rich(d.zh)} ${pips(S.cards[d.id])}</h2>
     <div class="card sheet" id="item"></div>
   </section>`;
-  mountProblem(app.querySelector('#item'), d.gen(rng((Math.random() * 2 ** 31) | 0)), {
+  mountProblem(app.querySelector('#item'), d.gen(rng(q.seed)), {
+    saved: resume ? q.steps : null,
+    onProgress: (steps, ev) => {
+      q.steps = steps;
+      saveQueue();
+      if (ev.finished) {
+        const add = { steps: 1, first: ev.first ? 1 : 0 };
+        logToday(add);
+        bump(S.devstat, d.lesson, add);
+        persist();
+      }
+    },
     onDone: (res, el) => {
-      record(d, res);
-      if (res.clean) q.clean++;
+      if (!q.graded) {
+        record(d, res);
+        if (res.clean) q.clean++;
+        q.graded = true;
+        saveQueue();
+      }
       el.insertAdjacentHTML('beforeend', `<div class="actions"><button class="btn" data-next>${q.k + 1 < q.ids.length ? '下一题 →' : '看小结'}</button></div>`);
       const b = el.querySelector('[data-next]');
       b.addEventListener('click', () => {
         q.k++;
+        q.seed = 0;
+        q.steps = [];
+        q.graded = false;
         nextInQueue();
       });
       b.focus({ preventScroll: true });
@@ -671,7 +891,7 @@ function renderSummary() {
     </div>
   </section>`;
   inkIn();
-  app.querySelector('[data-more]').addEventListener('click', renderPractice);
+  app.querySelector('[data-more]').addEventListener('click', () => renderPractice(true));
 }
 
 /* ---------------------------------------------------------------- formulas */
@@ -691,7 +911,7 @@ function renderFormulas() {
         .map(l => {
           const ms = l.learn.filter(b => b.type === 'math');
           if (!ms.length) return '';
-          return `<div class="fbook ${S.lessons[l.id] ? '' : 'unlearned'}"><a class="fhead" href="#/lesson/${l.id}">${rich(l.zh)}</a>${ms.map(renderBlock).join('')}</div>`;
+          return `<div class="fbook ${isLearned_(l.id) ? '' : 'unlearned'}"><a class="fhead" href="#/lesson/${l.id}">${rich(l.zh)}</a>${ms.map(renderBlock).join('')}</div>`;
         })
         .join('')}`,
       )
@@ -742,15 +962,17 @@ function renderSettings() {
     <a class="back" href="#/">← Home</a>
     <p class="eyebrow">Settings</p>
     <h1 class="medium-heading">设置</h1>
-    <div class="card form">
+    <div class="card form prefs">
       <label class="row"><span>考试日期<br><small class="tsub">用来排每周进度；最后 ${REVIEW_DAYS} 天留给总复习</small></span><input type="date" name="examDate" value="${esc(s.examDate)}"></label>
       <label class="row"><span>每天最多复习几题</span><select name="reviewCap">${[10, 15, 20, 30, 50].map(n => `<option ${n === s.reviewCap ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label class="row"><span>错几次后出现“看思路”</span><select name="revealAfter">${[1, 2, 3].map(n => `<option ${n === s.revealAfter ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <p class="saved hand" hidden>saved</p>
     </div>
+    ${syncCard()}
+    ${installCard()}
     <div class="card form">
-      <p class="kicker">Your progress</p>
-      <p>进度只保存在这个浏览器里。换设备时先导出，再在新设备上导入。</p>
+      <p class="kicker">Your progress · 备份</p>
+      <p>${sync.config() ? '进度保存在这台设备上，并同步到你的私密 Gist。导出的文件可以留作备份。' : '没有连接同步时，进度只保存在这台设备的浏览器里：每答一步都会自动保存，刷新或关掉浏览器都不会丢。也可以导出文件，再在另一台设备导入。'}</p>
       <div class="actions">
         <button class="btn ghost" data-act="export">导出进度</button>
         <label class="btn ghost file">导入进度<input type="file" accept="application/json" hidden></label>
@@ -759,11 +981,12 @@ function renderSettings() {
     </div>
   </section>`;
   const saved = app.querySelector('.saved');
-  app.querySelectorAll('input[name], select[name]').forEach(el =>
+  app.querySelectorAll('.prefs input[name], .prefs select[name]').forEach(el =>
     el.addEventListener('change', () => {
       const v = el.name === 'examDate' ? el.value : +el.value;
       if (el.name === 'examDate' && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
       S.settings[el.name] = v;
+      S.settingsT = Date.now();
       persist();
       saved.hidden = false;
       setTimeout(() => (saved.hidden = true), 1400);
@@ -780,14 +1003,123 @@ function renderSettings() {
     }
   });
   app.querySelector('[data-act="reset"]').addEventListener('click', () => {
-    if (confirm('确定要清空所有进度吗？')) {
+    if (confirm(sync.config() ? '清空全部进度？已连接同步，所有设备上的进度都会被清空，无法撤销。' : '清空全部进度？此操作无法撤销。')) {
       S = store.reset();
+      persist();
       location.hash = '#/';
     }
   });
+  const now = app.querySelector('[data-act="sync-now"]');
+  if (now) now.addEventListener('click', () => sync.syncNow());
+  const off = app.querySelector('[data-act="sync-off"]');
+  if (off)
+    off.addEventListener('click', () => {
+      if (confirm('断开这台设备的同步？已同步的进度会保留在这台设备和你的 Gist 里。')) {
+        sync.disconnect();
+        renderSettings();
+      }
+    });
+  const inst = app.querySelector('[data-act="install"]');
+  if (inst) inst.addEventListener('click', () => promptInstall().then(renderSettings));
+  const form = app.querySelector('#token-form');
+  if (form)
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const tok = form.token.value.trim();
+      const msg = app.querySelector('#token-msg');
+      if (!tok) return;
+      msg.textContent = '正在连接…';
+      try {
+        await sync.connect(tok);
+        renderSettings();
+      } catch (err) {
+        msg.textContent = `连接失败：${err.message}。请检查令牌的 Gists 权限是否为 Read and write。`;
+        msg.classList.add('warn');
+      }
+    });
+}
+
+/* ---------------------------------------------------------------- sync & install */
+
+const fmtTime = t => (t ? new Date(t).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '');
+
+function syncLabel(st = sync.getStatus()) {
+  return { off: '', syncing: '同步中…', ok: `已同步 ${fmtTime(st.at)}`, offline: '离线 · 联网后自动同步', auth: '同步失败：令牌失效', error: '同步出错，稍后重试' }[st.state];
+}
+
+function paintSyncStatus(st = sync.getStatus()) {
+  const el = document.getElementById('syncstate');
+  if (el) {
+    el.textContent = syncLabel(st);
+    el.dataset.state = st.state;
+    el.hidden = st.state === 'off';
+  }
+  const box = document.getElementById('syncbox-state');
+  if (box) box.textContent = syncLabel(st) || '未连接';
+}
+
+function syncCard() {
+  if (sync.config()) {
+    return `<div class="card form sync-card">
+      <p class="kicker">Sync · 多设备同步</p>
+      <p class="sync-on"><span class="dot"></span> 已连接。电脑、手机网页、手机 App 用同一个令牌连接后，进度会自动合并。</p>
+      <p class="sub">状态：<b id="syncbox-state">${esc(syncLabel() || '…')}</b></p>
+      <div class="actions"><button class="btn ghost" data-act="sync-now">立即同步</button><button class="btn ghost" data-act="sync-off">断开这台设备</button></div>
+      <p class="fine">打开时、切回页面时、每次答题后几秒、切到后台时都会同步（先拉取、合并、再上传）。两台设备同时学也不会互相覆盖：每道题以最近一次作答为准，每天的练习量按设备分别记录再相加，取消“已学”会留下时间戳，不会被另一台设备改回来。</p>
+    </div>`;
+  }
+  return `<div class="card form sync-card">
+    <p class="kicker">Sync · 多设备同步（可选）</p>
+    <p>不用注册账号。想在电脑和手机上接着学，就在每台设备上用同一个 GitHub 令牌连接一次：进度存进你自己 GitHub 账号里的一个私密 Gist，没有任何第三方服务器。</p>
+    <ol class="sync-steps">
+      <li>打开 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → 新建 fine-grained token</a>。</li>
+      <li>名称写 FM Notebook，有效期选最长；<b>Account permissions → Gists</b> 选 <b>Read and write</b>，其他都不用勾。</li>
+      <li>复制令牌，粘贴到下面点「连接」。其他设备粘贴同一个令牌。</li>
+    </ol>
+    <form class="token-form" id="token-form" autocomplete="off">
+      <input type="password" name="token" placeholder="github_pat_…" aria-label="GitHub 令牌" spellcheck="false" autocapitalize="off">
+      <button class="btn" type="submit">连接</button>
+    </form>
+    <p class="fine" id="token-msg">令牌只保存在这台设备上，只能读写 Gist，不能访问你的仓库，随时可以在 GitHub 上撤销。它只用于同步，不代表任何身份或权限。</p>
+  </div>`;
+}
+
+function installCard() {
+  const st = installState();
+  if (st.standalone) return `<div class="card form"><p class="kicker">App · 手机 App</p><p>你正在使用已安装的 FM Notebook。${sync.config() ? '' : '<b>记得在这里也连接一次同步</b>：主屏幕上的 App 和浏览器里的网页，存储是分开的。'}</p></div>`;
+  return `<div class="card form install-card">
+    <p class="kicker">App · 装到手机</p>
+    <p>FM Notebook 可以像 App 一样装到手机主屏幕：全屏打开、有图标，没网也能学（同步会在联网后补上）。</p>
+    ${st.canPrompt ? '<div class="actions"><button class="btn" data-act="install">安装 FM Notebook</button></div>' : ''}
+    <ul class="sync-steps">
+      <li><b>iPhone / iPad：</b>用 Safari 打开 → 底部「分享」 → 「添加到主屏幕」。</li>
+      <li><b>Android：</b>用 Chrome 打开 → 右上角菜单 → 「安装应用」。</li>
+      <li><b>电脑：</b>Chrome / Edge 地址栏右侧的安装图标。</li>
+    </ul>
+  </div>`;
+}
+
+/* Before a review is built, pull what other devices did (at most 3 s; offline it just starts). */
+async function syncFirst() {
+  const st = sync.getStatus();
+  if (!sync.config() || (st.state === 'ok' && Date.now() - st.at < 20000)) return;
+  app.innerHTML = '<section class="session"><p class="loading hand">one moment…</p><p class="loading-sub">正在同步其他设备的进度</p></section>';
+  await Promise.race([sync.syncNow(), new Promise(r => setTimeout(r, 3000))]);
+}
+
+/* Merged progress from another device arrived: use it, and redraw the page unless the
+   learner is in the middle of typing an answer. */
+function applyRemote(merged) {
+  S = { ...merged, log: aggregateLog(merged.devlog) };
+  store.save(S);
+  const busy = document.activeElement && document.activeElement.matches && document.activeElement.matches('input.answer');
+  const view = document.body.dataset.view;
+  if (!busy && ['home', 'settings', 'formulas'].includes(view)) route();
 }
 
 /* ---------------------------------------------------------------- go */
 
 route();
 startBirds();
+initPwa({ onChange: () => document.body.dataset.view === 'settings' && renderSettings() });
+sync.initSync({ state: () => S, apply: applyRemote, onStatus: paintSyncStatus });

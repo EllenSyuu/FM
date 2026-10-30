@@ -24,7 +24,8 @@ export function timeline(spec, opts = {}) {
   const padR = 40;
   const axisY = 132;
   const hasDown = flows.some(f => f.side === 'down');
-  const H = (hasDown ? 252 : 214) + (opts.moves ? 34 + (hasDown ? 40 : 0) : 0);
+  const band = axisY + (hasDown ? 84 : 40); // top of the space under the axis used by animations
+  const H = (hasDown ? 252 : 214) + (opts.moves ? 34 + (hasDown ? 40 : 0) : 0) + (opts.stage ? 76 : 0);
   const step = (W - padL - padR) / n;
   const x = t => padL + t * step;
   const id = `tl${++uid}`;
@@ -61,8 +62,8 @@ export function timeline(spec, opts = {}) {
     const X = x(focal);
     focalMark = `<g>
       <path class="fade" ${d(0.9)} d="M${X} 34 V${axisY + 16}" stroke="${ORANGE}" stroke-width="0.9" stroke-dasharray="3 3"/>
-      <circle class="fade" ${d(1)} cx="${X}" cy="${axisY}" r="6.5" fill="none" stroke="${ORANGE}" stroke-width="1.4"/>
-      <text class="write tl-hand" ${d(1.1)} x="${X + 6}" y="${axisY + 56}" fill="${ORANGE}" font-size="24">?</text>
+      <circle class="fade tl-focal" ${d(1)} cx="${X}" cy="${axisY}" r="6.5" fill="none" stroke="${ORANGE}" stroke-width="1.4"/>
+      <text class="write tl-hand tl-q" ${d(1.1)} x="${X + 6}" y="${axisY + 56}" fill="${ORANGE}" font-size="24">?</text>
     </g>`;
   }
 
@@ -93,7 +94,7 @@ export function timeline(spec, opts = {}) {
     ? Array.from({ length: n + 1 }, (_, t) => `<rect class="tl-hit" data-t="${t}" x="${x(t) - step / 2}" y="20" width="${step}" height="${axisY + 14}" fill="transparent"/>`).join('')
     : '';
 
-  return `<svg class="timeline" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(timelineLabel(spec))}">
+  return `<svg class="timeline" viewBox="0 0 ${W} ${H}" data-x0="${padL}" data-dx="${step}" data-axis="${axisY}" data-band="${band}" data-n="${n}" role="img" aria-label="${esc(timelineLabel(spec))}">
   <defs>
     <marker id="${id}-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M1 1 L9 5 L1 9" fill="none" stroke="${ORANGE}" stroke-width="1.4"/>
@@ -112,6 +113,7 @@ export function timeline(spec, opts = {}) {
   ${arrows.join('')}
   ${moves}
   <g class="tl-picks"></g>
+  ${opts.stage ? '<g class="tl-stage"></g>' : ''}
   ${interactive}
 </svg>`;
 }

@@ -36,10 +36,28 @@ So a drill never asks for a number worked out by hand. It asks for the **reasoni
 </tr>
 </table>
 
-When a problem is solved, its timeline redraws each payment travelling to the date asked about,
-labelled with the factor it picks up:
+The timeline moves with the reasoning. Each right answer animates exactly what that step
+established — 1,000 growing ×1.06 year by year, a payment sliding left ×v, an annuity's
+payments stacking up at one date, a loan balance stepping down — and the last step fills the
+circled date with the answer. A wrong answer draws that part of the timeline in grey, shakes
+it and opens the hint.
 
 <img src="docs/img/moves.jpg" alt="Timeline after solving: an arc carries 200 from t=1 to t=2 labelled ×(1+i), another carries 300 from t=4 back to t=2 labelled ×v²" width="100%">
+
+## Progress, sync and the phone app
+
+- **Saved after every step.** Every attempt, every finished step and every learned lesson is
+  written to `localStorage` at once; a refresh or a closed tab resumes the problem where it
+  stopped, with the timeline replayed. The syllabus shows each lesson's state (learned,
+  worked-example step reached, first-try accuracy).
+- **No accounts.** Optional sync between devices goes through a private Gist in the learner's
+  own GitHub account, using a fine-grained token with Gists read/write only. Every sync is
+  pull → merge → push (on open, on return to the page, a few seconds after an answer, when
+  going to the background). Merging is deterministic: per drill the latest answer wins, daily
+  and per-lesson counters are kept per device and summed, and un-marking a lesson leaves a
+  timestamped tombstone. See [`js/merge.js`](js/merge.js) and its tests.
+- **Installable.** A web-app manifest and a network-first service worker make it an offline
+  phone app (Add to Home Screen on iOS, Install on Android / desktop Chrome).
 
 ## What is covered
 
@@ -115,11 +133,14 @@ flowchart LR
 | [`js/expr.js`](js/expr.js) | A small Pratt parser for set-ups such as `200(1+i) + 300v^2`: implicit multiplication, `%`, superscripts, actuarial functions; evaluates with the problem's variables and produces TeX. |
 | [`js/timeline.js`](js/timeline.js) | Draws timelines as inked plates; tap-to-place payments; animated arcs showing each payment moving to the asked date. |
 | [`js/app.js`](js/app.js) | Hash router, lesson pages, the problem player (choice / expression / place steps, hints, reveal), review sessions, formula notebook. |
+| [`js/stage.js`](js/stage.js) | The timeline as a stage: grow, discount, move, drop, stack, balance, answer — played per reasoning step. |
 | [`js/srs.js`](js/srs.js), [`js/plan.js`](js/plan.js) | Leitner spaced repetition per drill type; weekly pace to the exam date. |
+| [`js/store.js`](js/store.js), [`js/merge.js`](js/merge.js), [`js/sync.js`](js/sync.js) | Local progress with versioned migration; conflict-free merge; Gist sync. |
+| [`sw.js`](sw.js), [`js/pwa.js`](js/pwa.js) | Offline shell and install prompt. |
 | [`data/`](data) | The course: one file per syllabus topic. Format in [`docs/content-guide.md`](docs/content-guide.md). |
 
-Progress stays in the browser (`localStorage`), with export/import of a JSON file to move
-between devices. Nothing is sent anywhere.
+Progress stays in the browser unless the learner connects their own Gist; export/import of a
+JSON file is available as a backup. There is no server and no analytics.
 
 ## Run locally
 

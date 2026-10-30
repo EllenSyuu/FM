@@ -341,7 +341,7 @@ main { counter-reset: section; }
 .chip input:checked + span { border-color: var(--ink); background: var(--ink); color: var(--paper-light); }
 .chip input:focus-visible + span { outline: 1.5px dashed var(--accent); outline-offset: 2px; }
 input[type='checkbox'] { accent-color: var(--accent); width: 17px; height: 17px; }
-.saved { font-size: 22px; }
+.saved { position: absolute; right: 26px; top: 18px; margin: 0; font-size: 22px; }
 .file { cursor: pointer; }
 
 /* ------------------------------------------------------------- session */
@@ -604,6 +604,45 @@ td { padding: 9px 12px; border-bottom: 0.75px solid var(--hairline); color: var(
 .syntax td:first-child { white-space: nowrap; }
 .formulas .numbered-heading { margin-top: 48px; white-space: normal; }
 
+/* ------------------------------------------------------------- stage: the timeline moving with each step */
+.stage-wrap svg { overflow: visible; }
+.tl-stage .st-factor { font-family: var(--serif); font-size: 18px; font-style: italic; font-weight: 600; }
+.tl-stage .st-amount { font-family: var(--serif); font-size: 19px; font-style: italic; font-weight: 600; font-variant-numeric: lining-nums; paint-order: stroke; stroke: var(--paper-light); stroke-width: 5px; transition: opacity 0.5s, font-size 0.5s; }
+.tl-stage .st-amount.st-old { opacity: 0.45; font-size: 15px; fill: var(--graphite); }
+.tl-stage .st-small { font-family: var(--serif); font-size: 13.5px; font-style: italic; font-variant-numeric: lining-nums; }
+.tl-stage .st-answer { fill: var(--accent); font-family: var(--serif); font-size: 24px; font-style: italic; font-weight: 600; font-variant-numeric: lining-nums; paint-order: stroke; stroke: var(--paper-light); stroke-width: 6px; }
+.tl-stage .st-note { font-family: var(--hand); font-size: 20px; }
+.tl-stage .st-ghost { opacity: 0.9; }
+.tl-stage .st-ghost text { fill: var(--faint); }
+.tl-q { transition: opacity 0.3s; }
+
+/* ------------------------------------------------------------- per-lesson progress */
+.lmeta { display: block; margin-top: 2px; color: var(--accent); font-family: var(--serif); font-size: 13.5px; font-style: italic; }
+
+/* ------------------------------------------------------------- sync, install, app mode */
+.syncstate { margin-left: 4px; color: var(--graphite); font-family: var(--serif); font-size: 14px; font-style: italic; white-space: nowrap; }
+.syncstate::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--sage); vertical-align: 1px; }
+.syncstate[data-state='syncing']::before { background: var(--amber); animation: pulse 1s ease-in-out infinite alternate; }
+.syncstate[data-state='offline']::before, .syncstate[data-state='error']::before, .syncstate[data-state='auth']::before { background: var(--maple); }
+@keyframes pulse { from { opacity: 0.35; } to { opacity: 1; } }
+@media (max-width: 860px) { .syncstate { font-size: 12.5px; } }
+@media (max-width: 520px) { .syncstate { position: absolute; right: max(24px, 4vw); top: calc(var(--nav-h) - 16px); font-size: 11.5px; } }
+.settings .card + .card { margin-top: 22px; }
+.sync-card .sync-on { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.sync-card .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sage); flex: none; }
+.sync-card .sub { color: var(--graphite); font-size: 15px; }
+.sync-steps { margin: 10px 0; padding-left: 22px; font-size: 15px; }
+.sync-steps li { padding: 3px 0; }
+.sync-steps a { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+.token-form { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.token-form input { flex: 1 1 240px; padding: 10px 12px; border: 0.75px solid var(--ink); border-radius: 0; background: var(--paper-light); color: var(--ink); font-family: ui-monospace, Menlo, monospace; font-size: 15px; }
+.fine { margin: 10px 0 0; color: var(--graphite); font-size: 13.5px; line-height: 1.6; }
+.fine.warn { color: #9b2c1c; }
+.loading { margin: 120px 0 4px; text-align: center; font-size: 34px; }
+.loading-sub { text-align: center; color: var(--graphite); }
+html.standalone .nav { padding-top: env(safe-area-inset-top); height: calc(var(--nav-h) + env(safe-area-inset-top)); }
+html.standalone .foot { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+
 /* ------------------------------------------------------------- footer, birds */
 .foot { padding: 34px 24px 40px; text-align: center; color: var(--graphite); font-family: var(--serif); font-size: 15px; font-style: italic; }
 .foot a { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
@@ -613,6 +652,7 @@ body[data-view='practice'] .foot { display: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .plate .ink, .draw .ink, .feedback .ink, .verdict .ink, .summary-line .ink { stroke-dashoffset: 0; }
+  .tl-stage * { animation: none !important; }
   .plate .fade { opacity: 1; }
   .plate .write { clip-path: none; }
   .numbered-heading::after, .boxes .bar { transform: none; }

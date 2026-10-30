@@ -31,6 +31,20 @@ function checkProblem(p, where) {
       assert.ok(s.answer.length && s.answer.every(t => t >= 0 && t <= s.n - 1), `${at}: answer within 0..n-1`);
     } else assert.fail(`${at}: unknown kind ${s.kind}`);
   }
+  const DO = { grow: ['from', 'to', 'mult'], discount: ['from', 'to', 'mult'], move: ['from', 'to'], drop: ['t'], stack: ['ts', 'to', 'amt', 'i'], balance: ['points'], answer: ['t', 'value'], note: ['t', 'text'] };
+  for (const [k, s] of p.steps.entries())
+    for (const a of s.anim || []) {
+      const at = `${where} step ${k + 1} anim ${a.do}`;
+      assert.ok(p.timeline || s.kind === 'place', `${at}: animations need a timeline`);
+      assert.ok(DO[a.do], `${at}: unknown action`);
+      for (const f of DO[a.do]) assert.ok(a[f] !== undefined, `${at}: needs ${f}`);
+      const n = p.timeline ? p.timeline.n : s.n - 1;
+      const ts = [a.t, a.from, a.to, ...(a.ts || []), ...(a.points || []).map(q => q[0])].filter(x => x !== undefined);
+      for (const t of ts) assert.ok(t >= 0 && t <= n, `${at}: date ${t} outside 0..${n}`);
+      if (a.do === 'grow') assert.ok(a.to > a.from, `${at}: grow goes forward`);
+      if (a.do === 'discount') assert.ok(a.to < a.from, `${at}: discount goes backward`);
+      if (a.do === 'answer') assert.ok(Number.isFinite(a.value), `${at}: answer value`);
+    }
   if (p.timeline) {
     const { n, flows } = p.timeline;
     assert.ok(n >= 1 && n <= 40, `${where}: timeline length`);

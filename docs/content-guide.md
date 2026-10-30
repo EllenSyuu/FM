@@ -42,6 +42,30 @@ A problem is `{ text, timeline?, vars, steps }`. Steps are built with `choice`, 
 `place` from `kit.js`. Every `expr` step gives both a `target` (computed directly in JS)
 and a `model` set-up (written in the expression language); the tests check they agree.
 
+## Timeline animation (`anim`)
+
+A step can say what the timeline does when it is answered right. A wrong answer draws the
+first action in grey (shape only, no labels) and shakes it, and the hint opens.
+
+```js
+choice('钱每过一年会怎样变？', [...], { anim: [{ do: 'grow', from: 0, to: 1, start: 1000, mult: 1.06, label: '×1.06' }] })
+```
+
+| Action | Fields | What it shows |
+| --- | --- | --- |
+| `grow` | `from < to`, `start`, `mult`, `label`, `unit?` | one arc per period under the axis, amount at each date updated (1,000 → 1,060 → …) |
+| `discount` | `from > to`, `start`, `mult`, `label` | the same, sliding left (×v) |
+| `move` | `from`, `to`, `label`, `result?` / `resultText?`, `tone?` | one payment carried to another date in one arc |
+| `drop` | `t`, `amt?`, `side?` | a payment arrow falls onto the axis |
+| `stack` | `ts`, `to`, `amt`, `i` | payments carried one by one to a date, running total there |
+| `balance` | `points: [[t, B], …]`, `max?` | a loan balance line falling at each payment |
+| `answer` | `t`, `value`, `unit?` | the circled date fills with the answer and a tick |
+| `note` | `t`, `text` | a short label under the axis |
+
+If the problem has a focal date and its steps carry animations but no `answer`, the last step
+adds one with the last expression step's target. Problems with no animations at all get a
+default finish: every payment travels to the focal date with its factor, then the answer.
+
 ## Expression language
 
 Numbers (`1.05`, `5%`, `1,000`), `+ − × ÷ ^ ( )`, implicit multiplication (`100v^3`),

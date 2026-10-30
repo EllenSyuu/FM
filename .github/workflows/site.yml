@@ -61,7 +61,7 @@ jobs:
       - name: Collect the static site
         run: |
           mkdir _site
-          cp -r index.html css js data assets fonts vendor _site/
+          cp -r index.html sw.js manifest.webmanifest css js data assets fonts vendor _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

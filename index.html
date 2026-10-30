@@ -2,11 +2,16 @@
 <html lang="zh-Hans">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>FM Notebook · Exam FM, one timeline at a time</title>
     <meta name="description" content="A no-calculator study notebook for SOA Exam FM: lessons drawn on timelines, guided step-by-step reasoning, and spaced review." />
     <meta name="theme-color" content="#f6f1e6" />
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FM Notebook" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="preload" href="fonts/cormorant-garamond-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="vendor/katex/katex.min.css" />
@@ -26,6 +31,7 @@
           <li><a href="#/settings">Settings</a></li>
         </ol>
       </nav>
+      <span class="syncstate" id="syncstate" hidden></span>
       <a class="home-link" href="https://ellensyuu.github.io/">Ziyi Zhou <span aria-hidden="true">↗</span></a>
     </header>
 
@@ -37,7 +43,7 @@
       <p>
         Written and drawn by <a href="https://ellensyuu.github.io/">Ziyi Zhou</a> ·
         <a href="https://github.com/EllenSyuu/FM">source</a> · <a href="#/settings">settings</a> ·
-        not affiliated with the Society of Actuaries · your progress stays in this browser
+        not affiliated with the Society of Actuaries · progress is saved in this browser, and synced only if you connect your own Gist
       </p>
     </footer>
     <script>

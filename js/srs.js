@@ -44,6 +44,7 @@ export function grade(card, ok, today = dayKey()) {
   }
   c.due = addDays(today, INTERVALS[c.box]);
   c.last = today;
+  c.t = Date.now(); // for merging devices: the most recent answer wins
   return c;
 }
 
