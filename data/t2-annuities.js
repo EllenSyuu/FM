@@ -1,4 +1,4 @@
-import { pick, int, RATES, pct, money, round, choice, expr, place, tl, flowsEvery, an, sn, adn, sdn, sumPV, P, M, T, TERMS, TIP, TABLE, RECIPE } from './kit.js';
+import { pick, int, RATES, pct, money, round, choice, expr, place, tl, flowsEvery, an, sn, adn, sdn, sumPV, P, M, T, TERMS, TIP, TABLE, RECIPE, G } from './kit.js';
 
 /* Topic 2 — Annuities and non-contingent cash flows (SOA FM learning objectives 2a–2b). */
 
@@ -26,6 +26,7 @@ const lessons = [
       T(tl(5, flowsEvery(1, 5, '1'), { focal: 0, rate: 'i' }), '付款在 t = 1, 2, …, 5；问 t = 0 的价值。注意：估值日比第一笔付款**早一期**。'),
       P('用 Topic 1 的方法逐笔往前搬：t = 1 的 1 乘 $v$，t = 2 的 1 乘 $v^2$……加起来是一个等比数列（geometric series）：首项 $v$，公比 $v$，共 $n$ 项。'),
       M('a_{\\angl{n}} = v + v^2 + \\cdots + v^n = v\\,\\frac{1-v^n}{1-v} = \\frac{1-v^n}{i}', '最后一步用了 $1 - v = iv$（也就是 $d$），分子分母的 $v$ 约掉。读作 “a angle n”：期末付 1、共 n 期，在**第一笔之前一期**的价值。'),
+      G({ n: 10, curves: [{ label: '账户余额', f: t => { const k = Math.floor(t + 1e-9); return 100 * ((1.08 ** k - 1) / 0.08) * 1.08 ** (t - k); }, tone: 'orange' }] }, '每年末存 100，i = 8%：每到一个整数时刻跳上一笔 100，中间按利息慢慢长。t = 10 那一刻的高度就是 $100\\,s_{\\angl{10}}$。'),
       P('另一个读法很好记：今天存进 $1$ 元，每期末取走利息 $i$，第 $n$ 期末再取回本金 $1$。所以 $1 = i\\,a_{\\angl{n}} + v^n$，移项就是上面的公式。'),
       M('s_{\\angl{n}} = (1+i)^{n-1} + \\cdots + (1+i) + 1 = \\frac{(1+i)^n - 1}{i} = a_{\\angl{n}}(1+i)^n', '$s_{\\angl{n}}$（accumulated value）：同一串付款搬到**最后一笔付款那一刻**。从 $a$ 往后搬 $n$ 期就得到 $s$。'),
       TERMS([
@@ -428,6 +429,7 @@ const lessons = [
         ],
       ),
       T(tl(10, flowsEvery(1, 6, 'P'), { focal: 9, rate: 'i' }), '付款在 t = 1…6，问 t = 9：$s_{\\angl{6}}$ 落在 t = 6，再往后搬 3 期 → $P\\,s_{\\angl{6}}(1+i)^3$。'),
+      G({ n: 10, curves: [{ label: '整串付款的价值', f: t => 100 * ((1 - 1.08 ** -10) / 0.08) * 1.08 ** t, tone: 'orange' }, { label: '已付进账户的', f: t => { const k = Math.floor(t + 1e-9); return 100 * ((1.08 ** k - 1) / 0.08) * 1.08 ** (t - k); }, tone: 'ink', dash: true }] }, '每年末 100、共 10 笔、i = 8%。橙线：整串付款在 t 时刻的价值，是一条平滑曲线——起点是 $a$，终点是 $s$，中间任何一刻都是 $a\\,(1+i)^t$。虚线：只算已经付了的那几笔。'),
       M('\\text{value at } t = a_{\\angl{n}}(1+i)^{t} = s_{\\angl{n}}\\,v^{\\,n-t}', '付款在 1…n。从 $a$ 的锚点（t = 0）往后搬 t 期，或者从 $s$ 的锚点（t = n）往前搬 n − t 期，结果一样。'),
       M('\\text{value at } t\\ (0<t<n) = s_{\\angl{t}} + a_{\\angl{n-t}}', '比较日在中间：已经付的 t 笔（含 t 时刻那一笔）往后搬 → $s_{\\angl{t}}$；还没付的 n − t 笔往前看 → $a_{\\angl{n-t}}$。'),
       RECIPE('“在某一刻是多少钱”', ['标出第一笔和最后一笔付款的时刻', '选一个锚：$a$（第一笔前一期）或 $s$（最后一笔上）', '数锚点到比较日差几期：往后乘 $(1+i)^k$，往前乘 $v^k$']),

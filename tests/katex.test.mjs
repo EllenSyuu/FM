@@ -46,7 +46,7 @@ for (const l of LESSONS) {
     for (const b of l.learn) {
       if (b.type === 'math') render(b.tex, `${l.id} formula`), inline(b.note, `${l.id} note`);
       if (b.type === 'p' || b.type === 'tip') inline(b.text, l.id);
-      if (b.type === 'timeline') inline(b.caption, l.id);
+      if (b.type === 'timeline' || b.type === 'growth') inline(b.caption, l.id);
       if (b.type === 'terms') b.rows.flat().forEach(c => inline(c, l.id));
       if (b.type === 'table') [b.head, ...b.rows].flat().forEach(c => inline(c, l.id));
       if (b.type === 'recipe') [b.title, ...b.items].forEach(c => inline(c, l.id));

@@ -2,6 +2,7 @@ import { TOPICS, LESSONS, DRILLS } from '../data/syllabus.js';
 import { rng } from '../data/kit.js';
 import { read, sameValue, money, toTex } from './expr.js';
 import { timeline, drawPicks } from './timeline.js';
+import { growthPlate, mountGrowth } from './growth.js';
 import { heroPlate, tickMark, crossMark, monthSketch, startBirds } from './art.js';
 import { dayKey, addDays, grade, dueToday, streak, isLearned, LEARNED_BOX, MAX_BOX } from './srs.js';
 import { studyPlan, REVIEW_DAYS } from './plan.js';
@@ -136,7 +137,6 @@ function renderHome() {
     <div class="copy">
       <p class="eyebrow">SOA Exam FM · 金融数学</p>
       <h1 class="big-heading">Money on a line,<br><em class="accent">one date at a time.</em></h1>
-      <p class="lede">没有纸、没有计算器也能学。每道题拆成几步：先判断钱往哪个方向搬、乘什么，再把式子写出来——算数交给页面。从零开始，按 SOA 考纲的五个部分一课一课学，学过的题型换上新数字，按间隔重复回来复习。</p>
 
       <div class="today card">
         <p class="kicker">Today · ${esc(dateStr)}</p>
@@ -202,9 +202,9 @@ function renderHome() {
 }
 
 function paceNote(p, sk) {
-  if (!p.left) return '所有课都学过了：每天把待复习清空，再按部分随机练。';
-  if (p.inReview) return `已经进入考前 ${REVIEW_DAYS} 天的复习期，还有 ${p.left} 课没学，先挑比重大的部分。`;
-  return `还剩 ${p.left} 课。按这个速度每周学 ${p.perWeek} 课，最后 ${REVIEW_DAYS} 天留给总复习。本周已学 ${p.thisWeek} 课${sk ? `，已连续 ${sk} 天` : ''}。`;
+  if (!p.left) return '全部学完 · 每天清空复习';
+  if (p.inReview) return `考前复习期 · 还有 ${p.left} 课没学`;
+  return `每周 ${p.perWeek} 课 · 本周已学 ${p.thisWeek} 课${sk ? ` · 连续 ${sk} 天` : ''}`;
 }
 
 function topicCard(t) {
@@ -245,6 +245,8 @@ function renderBlock(b) {
       return `<figure class="formula">${K(b.tex, true)}${b.note ? `<figcaption>${rich(b.note)}</figcaption>` : ''}</figure>`;
     case 'timeline':
       return `<figure class="tl-wrap plate">${timeline(b.spec)}${b.caption ? `<figcaption>${rich(b.caption)}</figcaption>` : ''}</figure>`;
+    case 'growth':
+      return growthPlate({ ...b.spec, caption: plain(b.caption || ''), captionHtml: b.caption ? rich(b.caption) : '' });
     case 'terms':
       return `<dl class="terms">${b.rows.map(([en, zh, def]) => `<div><dt>${rich(en)}</dt><dd><b>${rich(zh)}</b>${def ? ` — ${rich(def)}` : ''}</dd></div>`).join('')}</dl>`;
     case 'tip':
@@ -302,6 +304,7 @@ function renderLesson(l) {
   </article>`;
   inkIn();
   observeDraw();
+  mountGrowth(app);
   mountProblem(app.querySelector('#example'), l.example(rng(7)), { label: 'Example' });
   const btn = app.querySelector('[data-act="learned"]');
   if (btn)

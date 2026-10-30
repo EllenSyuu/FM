@@ -1,4 +1,4 @@
-import { pick, int, RATES, pct, money, round, choice, expr, place, tl, flowsEvery, an, sn, P, M, T, TERMS, TIP, TABLE, RECIPE } from './kit.js';
+import { pick, int, RATES, pct, money, round, choice, expr, place, tl, flowsEvery, an, sn, P, M, T, TERMS, TIP, TABLE, RECIPE, G } from './kit.js';
 
 /* Topic 3 — Loans (SOA FM learning objectives 3a, 3b). */
 
@@ -174,6 +174,7 @@ const lessons = [
       M('B_k = P\\,a_{\\angl{n-k}}', '**往前看**（prospective）：还剩 n − k 次还款没付，把它们折到时刻 k。“欠的 = 以后还要付的钱的现值”。'),
       M('B_k = L(1+i)^k - P\\,s_{\\angl{k}}', '**往后看**（retrospective）：借的钱长到时刻 k，减去已付的 k 次还款长到时刻 k。“欠的 = 借的连本带利 − 已经还的连本带利”。'),
       T(tl(8, flowsEvery(1, 8, 'P'), { focal: 3, rate: 'i' }), '站在 t = 3（第 3 次还款刚付完）：右边 5 次未付的 P 折回来 → $P\\,a_{\\angl{5}}$；左边是已经发生的过去 → retrospective。'),
+      G({ n: 10, curves: [{ label: '未偿余额', f: t => { const P = 10000 / ((1 - 1.06 ** -10) / 0.06); const k = Math.min(10, Math.floor(t + 1e-9)); const Bk = P * ((1 - 1.06 ** -(10 - k)) / 0.06); return Bk * 1.06 ** (t - k); }, tone: 'orange' }] }, '借 10,000，i = 6%，10 年等额还清。每一年里余额先按利息长上去，到年末还款时掉下来；掉得一次比一次多，因为还款里本金的部分越来越大。'),
       P('为什么相等？时刻 0 有 $L = P\\,a_{\\angl{n}}$。把这个等式搬到时刻 k，再把还款分成“已付的 k 次”和“未付的 n − k 次”：$L(1+i)^k = P\\,s_{\\angl{k}} + P\\,a_{\\angl{n-k}}$。移项，两条公式就是同一件事。'),
       TABLE(
         ['方法', '公式', '什么时候好用'],

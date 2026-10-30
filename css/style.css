@@ -518,6 +518,33 @@ td { padding: 9px 12px; border-bottom: 0.75px solid var(--hairline); color: var(
 .placing .tl-hit { cursor: pointer; }
 .placing .tl-hit:hover { fill: rgba(207, 96, 43, 0.06); }
 
+/* ------------------------------------------------------------- growth plates */
+.growth { margin: 26px 0; }
+.growth svg { display: block; width: 100%; height: auto; overflow: visible; }
+.growth .g-grid { stroke: var(--rule); stroke-width: 0.7; }
+.growth .g-axes path { stroke: var(--faint); fill: none; }
+.growth .g-axis { stroke: var(--ink) !important; stroke-width: 1.1; }
+.growth .g-num { fill: var(--graphite); font-family: var(--serif); font-size: 15px; font-style: italic; font-variant-numeric: lining-nums; }
+.growth .g-unit { fill: var(--graphite); font-family: var(--serif); font-size: 14px; font-style: italic; }
+.growth .g-curve { stroke-dasharray: 1; stroke-dashoffset: 1; stroke-linejoin: round; transition: stroke-dashoffset 2.2s var(--pen); }
+.growth .g-curve.dashed { stroke-dasharray: 6 5; stroke-dashoffset: 0; opacity: 0; transition: opacity 1.2s ease 1.2s; }
+.growth .g-label { opacity: 0; font-family: var(--serif); font-size: 15px; font-style: italic; font-weight: 600; transition: opacity 0.8s ease; }
+.growth.on .g-curve { stroke-dashoffset: 0; }
+.growth.on .g-curve.dashed { opacity: 1; }
+.growth.on .g-label { opacity: 1; }
+.growth .g-now { stroke: var(--maple); stroke-width: 0.9; stroke-dasharray: 3 3; }
+.growth .g-read { fill: var(--accent); font-family: var(--serif); font-size: 19px; font-style: italic; font-weight: 600; font-variant-numeric: lining-nums; paint-order: stroke; stroke: var(--paper-light); stroke-width: 5px; }
+.g-controls { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+.g-play { flex: none; width: 34px; height: 34px; border: 0.75px solid var(--ink); border-radius: 50%; background: transparent; color: var(--ink); font-size: 12px; cursor: pointer; transition: background 0.25s, color 0.25s; }
+.g-play:hover { background: var(--ink); color: var(--paper-light); }
+.g-controls input[type='range'] { flex: 1; accent-color: var(--maple); }
+.g-t { min-width: 64px; color: var(--ink); font-family: var(--serif); font-size: 18px; font-style: italic; font-variant-numeric: lining-nums tabular-nums; }
+.g-values { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-top: 4px; font-size: 14px; color: var(--graphite); }
+.g-values i { display: inline-block; width: 14px; height: 2px; margin-right: 6px; vertical-align: middle; }
+.g-values b { color: var(--ink); font-family: var(--serif); font-size: 17px; font-variant-numeric: lining-nums tabular-nums; }
+.growth figcaption { margin-top: 8px; color: #4a5568; font-size: 14.5px; line-height: 1.55; }
+@media (prefers-reduced-motion: reduce) { .growth .g-curve { stroke-dashoffset: 0; } .growth .g-label { opacity: 1; } }
+
 /* ------------------------------------------------------------- problem player */
 .sheet { padding: 28px 32px 28px; }
 @media (max-width: 600px) { .sheet { padding: 22px 18px; } }

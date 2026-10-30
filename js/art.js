@@ -92,7 +92,7 @@ export function heroPlate({ lessons = 0, topics = 5, exam = 'Feb 2027' } = {}) {
   <text class="write hand" ${t(3.9)} x="${fx + 10}" y="${fy - 82}" fill="${ORANGE}" font-size="34">?</text>
   <text class="write hand" ${t(2.2)} x="${ax - 50}" y="${ay + 88}" fill="${INK}" font-size="22" transform="rotate(-8 ${ax - 50} ${ay + 88})">today</text>
 
-  <g class="fade leaf" ${t(4.2)} transform="translate(${fx + 52} ${fy + 100}) rotate(16) scale(1.05)">
+  <g class="fade leaf" ${t(4.2)} transform="translate(132 168) rotate(-14) scale(1.05)">
     <path d="${MAPLE}" fill="${ORANGE}" opacity="0.85"/>
     <path d="M0 -14 V18 M0 2 L-10 -3 M0 2 L10 -3" stroke="#fffaf2" stroke-width="0.8" fill="none"/>
   </g>

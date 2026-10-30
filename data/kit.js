@@ -70,3 +70,4 @@ export const TERMS = rows => ({ type: 'terms', rows }); // [[english, 中文, on
 export const TIP = text => ({ type: 'tip', text }); // margin note in the hand
 export const TABLE = (head, rows) => ({ type: 'table', head, rows });
 export const RECIPE = (title, items) => ({ type: 'recipe', title, items }); // numbered method
+export const G = (spec, caption) => ({ type: 'growth', spec, caption }); // animated growth curves with a time slider

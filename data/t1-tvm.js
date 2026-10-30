@@ -1,4 +1,4 @@
-import { pick, int, RATES, pct, money, round, choice, expr, place, tl, P, M, T, TERMS, TIP, TABLE, RECIPE } from './kit.js';
+import { pick, int, RATES, pct, money, round, choice, expr, place, tl, P, M, T, TERMS, TIP, TABLE, RECIPE, G } from './kit.js';
 
 /* Topic 1 — Time value of money (SOA FM learning objectives 1a–1d). */
 
@@ -19,6 +19,7 @@ const lessons = [
       P('两种“长大”的方式：'),
       M('\\text{simple 单利: } a(t) = 1 + i\\,t \\qquad \\text{compound 复利: } a(t) = (1+i)^t', '单利只给本金算利息；复利连上一期的利息也一起算利息（利滚利）。'),
       T(tl(3, [{ t: 0, amt: '100' }], { focal: 3, rate: 'i = 5%' }), '时刻 0 存 100，问时刻 3 值多少：复利就是 100 × 1.05 × 1.05 × 1.05。'),
+      G({ n: 10, curves: [{ label: '复利', f: t => 100 * 1.1 ** t, tone: 'orange' }, { label: '单利', f: t => 100 * (1 + 0.1 * t), tone: 'ink' }] }, '同样是 100 元、i = 10%。拖动时间看两种增长：t < 1 时单利略高，过了 t = 1 复利一路甩开。'),
       TABLE(
         ['时间 t', '单利 1 + it', '复利 (1+i)^t', '谁大'],
         [
@@ -135,6 +136,7 @@ const lessons = [
       P('想比较两笔钱，必须先把它们**搬到同一个时刻**。这个时刻叫比较日（comparison date / focal date）。'),
       M('\\text{往后搬 } k \\text{ 期：}\\times (1+i)^k \\qquad \\text{往前搬 } k \\text{ 期：}\\times v^k,\\quad v=\\frac{1}{1+i}', '$v$ 叫折现因子（discount factor）：一期以后的 1 元，今天值 $v$ 元。'),
       T(tl(5, [{ t: 1, amt: '200' }, { t: 4, amt: '300' }], { focal: 2, rate: 'i' }), '要问时刻 2 的价值：t=1 的 200 往后搬 1 期 → $200(1+i)$；t=4 的 300 往前搬 2 期 → $300v^2$。'),
+      G({ n: 8, curves: [{ label: '那 1,000 的价值', f: t => 1000 * 1.06 ** (t - 5), tone: 'orange' }] }, '同一笔 t = 5 到账的 1,000（i = 6%），站在不同时刻看它值多少：越早看越少，t = 5 正好 1,000，之后接着长大。'),
       TERMS([
         ['present value (PV)', '现值', '搬到时刻 0 的价值'],
         ['accumulated / future value', '终值', '搬到最后时刻的价值'],
@@ -263,6 +265,7 @@ const lessons = [
       P('银行常说“年利率 12%，按月复利”。这个 12% 是**名义利率**（nominal rate），记作 $i^{(12)} = 12\\%$。它的意思是：每个月给 $12\\%/12 = 1\\%$ 的利息。'),
       M('1 + i = \\left(1 + \\frac{i^{(m)}}{m}\\right)^{m}', '一年结 m 次，每次 $i^{(m)}/m$；一年下来真正长了多少，就是有效年利率 $i$。'),
       T(tl(4, [{ t: 0, amt: '1' }], { focal: 4, unit: 'quarter', rate: 'i⁽⁴⁾/4 per quarter' }), '按季复利：一年 4 段，每段乘 $(1 + i^{(4)}/4)$。'),
+      G({ n: 3, jumps: 1 / 12, yMin: 950, curves: [{ label: '按月', f: t => 1000 * 1.01 ** Math.floor(12 * t + 1e-9), tone: 'orange' }, { label: '按季', f: t => 1000 * 1.03 ** Math.floor(4 * t + 1e-9), tone: 'ink' }, { label: '按年', f: t => 1000 * 1.12 ** Math.floor(t + 1e-9), tone: 'graph' }] }, '名义利率都是 12%，1,000 存 3 年：利息只在结息那一刻入账，所以余额是台阶。结得越勤，台阶越密，最后越高。'),
       TABLE(['名义 12%', '每期利率', '有效年利率 i'], [['按年 m = 1', '12%', '12%'], ['按季 m = 4', '3%', '12.551%'], ['按月 m = 12', '1%', '12.683%'], ['连续', '—', '12.750%']]),
       TIP('名义利率只是“报价”；算钱永远先换成每期利率。'),
       RECIPE('换算口诀', ['名义 → 每期：$j = i^{(m)}/m$', '每期 → 有效年：$1 + i = (1+j)^m$', '有效年 → 每期：$j = (1+i)^{1/m} - 1$，再乘 m 得名义']),
@@ -423,6 +426,7 @@ const lessons = [
     learn: [
       P('把结息次数 m 一直加大，名义利率趋向一个极限，叫**利息力**（force of interest）$\\delta$。它是“此刻的瞬时增长率”。'),
       M('\\delta = \\ln(1+i) \\qquad a(t) = e^{\\delta t} \\qquad i = e^{\\delta} - 1', '利息力不变时，积累函数就是指数函数。'),
+      G({ n: 8, curves: [{ label: 'δ = 0.05', f: t => Math.exp(0.05 * t), tone: 'ink' }, { label: 'δₜ = 0.01t', f: t => Math.exp(0.01 * t * t), tone: 'orange' }] }, '两种利息力下 1 元的增长：常数 δ 是平稳的指数曲线；δₜ = 0.01t 开始慢、后来越来越快，在 t = 5 两条线正好相交（积分都是 0.25）。'),
       M('a(t) = \\exp\\!\\left(\\int_0^t \\delta_s\\,ds\\right)', '利息力随时间变化：先把 $\\delta_s$ 从 0 积到 t，再取指数。'),
       TABLE(['$\\delta_t$', '$\\int_0^t \\delta_s ds$', 'a(t)'], [['常数 δ', 'δt', '$e^{\\delta t}$'], ['$\\frac{1}{1+t}$', 'ln(1+t)', '1 + t（就是单利！）'], ['$kt$', '$kt^2/2$', '$e^{kt^2/2}$']]),
       M('d < d^{(m)} < \\delta < i^{(m)} < i \\quad (m>1)', '同一个有效利率下的大小顺序：贴现率最小，利率最大，利息力在正中间。'),

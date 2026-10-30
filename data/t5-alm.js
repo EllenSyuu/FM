@@ -1,4 +1,4 @@
-import { pick, int, RATES, pct, money, round, choice, expr, tl, P, M, T, TERMS, TIP, TABLE, RECIPE } from './kit.js';
+import { pick, int, RATES, pct, money, round, choice, expr, tl, P, M, T, TERMS, TIP, TABLE, RECIPE, G } from './kit.js';
 
 /* Topic 5 — General cash flows, portfolios and asset–liability management
    (SOA FM learning objectives 5a–5c; reading FM-24-17 §1–4 on duration / convexity approximations). */
@@ -430,6 +430,7 @@ const lessons = [
       M('P(i\') \\approx P(i)\\left(\\frac{1+i}{1+i\'}\\right)^{D_{mac}}', '一阶 Macaulay 近似：把整串现金流当作“在时刻 $D_{mac}$ 付一笔钱的零息债券”。对真正的零息债券，它是**精确**的。'),
       M('C = \\frac{P\'\'(i)}{P(i)}, \\qquad P(i+\\Delta) \\approx P(i)\\Bigl(1 - D_{mod}\\Delta + \\frac{C}{2}\\Delta^2\\Bigr)', '二阶近似：加上凸性（convexity）一项。$\\Delta^2 \\ge 0$，凸性又是正的，所以这一项总是往上修正。'),
       T(tl(10, [{ t: 10, amt: '1,000' }], { focal: 0, rate: 'i = 5% → 6%' }), '10 年零息债券：价格曲线是凸的（向上弯），切线永远在曲线下面。'),
+      G({ n: 12, unit: '收益率 (%)', yMin: 400, curves: [{ label: '真实价格', f: y => { const j = y / 100; return 60 * (j ? (1 - (1 + j) ** -10) / j : 10) + 1000 * (1 + j) ** -10; }, tone: 'orange' }, { label: '一阶近似（切线）', f: y => 1000 * (1 - 7.3601 * (y / 100 - 0.06)), tone: 'ink', dash: true }] }, '10 年期、息票 6% 的债券，横轴是收益率。在 6% 处价格 1,000、修正久期约 7.36，切线就是一阶近似。拖动看看：离 6% 越远，切线越低于真实价格——这个差就是凸性补回来的部分。'),
       TABLE(['方法', '要用到', '误差'], [
         ['精确重算', '所有现金流', '无'],
         ['一阶 modified', '$P, D_{mod}$', '总是**低估**（切线在凸曲线下方）'],

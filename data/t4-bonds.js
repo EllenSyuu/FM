@@ -1,4 +1,4 @@
-import { pick, int, pct, money, round, choice, expr, place, tl, flowsEvery, an, sn, P, M, T, TERMS, TIP, TABLE, RECIPE } from './kit.js';
+import { pick, int, pct, money, round, choice, expr, place, tl, flowsEvery, an, sn, P, M, T, TERMS, TIP, TABLE, RECIPE, G } from './kit.js';
 
 /* Topic 4 — Bonds (SOA FM learning objectives 4a–4c). Valuation between coupon dates is
    not in the syllabus, so every date here is a coupon date. */
@@ -284,6 +284,7 @@ const lessons = [
       P('溢价买的债券，到期只还 C，多付的 $P - C$ 不会回来。会计上把这部分在持有期内**慢慢摊掉**：每付一次息票，账面上的价值就往 C 靠近一点。'),
       M('BV_k = Fr\\,a_{\\angl{n-k}} + C\\,v^{\\,n-k}', '**账面价值**（book value）：第 k 次息票刚付完时，剩下的息票和赎回值按原收益率 j 折到时刻 k。和贷款的 prospective 余额一模一样。'),
       T(tl(8, bondFlows(8, 'Fr', 'C'), { focal: 3, rate: 'j' }), '站在 t = 3：右边还剩 5 次息票和赎回值，折回 t = 3 就是 $BV_3$。'),
+      G({ n: 10, yMin: 700, curves: [{ label: '溢价债（息 8%）', f: t => { const bv = k => 80 * ((1 - 1.06 ** -(10 - k)) / 0.06) + 1000 * 1.06 ** -(10 - k); const k = Math.min(9, Math.floor(t)); return bv(k) + (bv(k + 1) - bv(k)) * (t - k); }, tone: 'orange' }, { label: '折价债（息 4%）', f: t => { const bv = k => 40 * ((1 - 1.06 ** -(10 - k)) / 0.06) + 1000 * 1.06 ** -(10 - k); const k = Math.min(9, Math.floor(t)); return bv(k) + (bv(k + 1) - bv(k)) * (t - k); }, tone: 'ink' }] }, '面值 1,000、10 年、收益率 6% 的两张债券，每次付息后的账面价值：溢价债一路往下摊，折价债一路往上积，到期都正好收在 1,000。'),
       M('I_k = j\\,BV_{k-1} \\qquad \\text{amortization}_k = Fr - j\\,BV_{k-1} = (Fr - Cj)\\,v^{\\,n-k+1}', '每次息票里，$j\\,BV_{k-1}$ 是买家真正赚到的利息；剩下的 $Fr - I_k$ 是在“还”你多付的溢价。'),
       TABLE(
         ['k', '息票', '利息 $j\\,BV_{k-1}$', '溢价摊销', '账面价值'],

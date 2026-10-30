@@ -46,6 +46,10 @@ test('ids are unique', () => {
 for (const l of LESSONS) {
   test(`lesson ${l.id}`, () => {
     assert.ok(l.learn.length >= 3, 'lesson needs a real explanation');
+    for (const b of l.learn.filter(x => x.type === 'growth')) {
+      const { n, curves } = b.spec;
+      for (let k = 0; k <= 200; k++) for (const c of curves) assert.ok(Number.isFinite(c.f((k * n) / 200)), `${l.id}: growth curve ${c.label} at t=${(k * n) / 200}`);
+    }
     assert.ok(l.drills.length >= 2, 'lesson needs at least two drills');
     checkProblem(l.example(rng(7)), `${l.id} example`);
     for (const d of l.drills) for (let s = 1; s <= SEEDS; s++) checkProblem(d.gen(rng(s)), `${d.id} seed ${s}`);
