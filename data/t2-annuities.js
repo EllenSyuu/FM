@@ -50,10 +50,10 @@ const lessons = [
             [`$300\\,${A(8)}$`, true],
             [`$300\\,${AD(8)}$`, false, '$\\ddot a$ 落在第一笔付款**那一刻**；这里付款在期末，今天比第一笔早一期。'],
             [`$300\\,${S(8)}$`, false, '$s$ 是在最后一笔付款时的价值，不是今天的。'],
-          ], { hint: '付款在每年**末**：期末年金。' }),
-          expr('写出今天的价值（现值）：', { target: 300 * an(8, i), model: '300a(8)', why: `$300\\,${A(8)} = 300 \\times 6.4632 = 1938.96$。` }),
-          expr('写出第 8 年末的价值（终值）：', { target: 300 * sn(8, i), model: '300s(8)', hint: '最后一笔付款就在 t = 8，正是 $s$ 的落点。' }),
-          expr('换一条路：把现值往后搬 8 年，也应得到终值。', { target: 300 * an(8, i) * 1.05 ** 8, model: '300a(8)(1+i)^8', why: `$${S(8)} = ${A(8)}(1+i)^8$：同一串钱，只是换了时刻看。` }),
+          ], { hint: '付款在每年**末**：期末年金。', anim: [{ do: 'move', from: 1, to: 0, label: 'a⌐ 落点', tone: 'ink' }] }),
+          expr('写出今天的价值（现值）：', { target: 300 * an(8, i), model: '300a(8)', anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5, 6, 7, 8], to: 0, amt: 300, i }, { do: 'answer', t: 0, value: 300 * an(8, i) }], why: `$300\\,${A(8)} = 300 \\times 6.4632 = 1938.96$。` }),
+          expr('写出第 8 年末的价值（终值）：', { target: 300 * sn(8, i), model: '300s(8)', anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5, 6, 7, 8], to: 8, amt: 300, i, tone: 'ink' }], hint: '最后一笔付款就在 t = 8，正是 $s$ 的落点。' }),
+          expr('换一条路：把现值往后搬 8 年，也应得到终值。', { target: 300 * an(8, i) * 1.05 ** 8, model: '300a(8)(1+i)^8', anim: [{ do: 'move', from: 0, to: 8, label: '×(1+i)⁸' }, { do: 'answer', t: 8, value: 300 * an(8, i) * 1.05 ** 8 }], why: `$${S(8)} = ${A(8)}(1+i)^8$：同一串钱，只是换了时刻看。` }),
         ],
       };
     },
@@ -194,10 +194,10 @@ const lessons = [
           choice('第一步：这是哪种年金？', [
             ['期初年金（annuity-due）', true],
             ['期末年金（annuity-immediate）', false, '“今天开始、每年年初” = 第一笔在 t = 0，是期初付款。'],
-          ]),
-          expr('t = 0 的价值（现值）：', { target: 1000 * adn(5, i), model: '1000ad(5)', hint: '$\\ddot a$ 写成 ad。' }),
-          expr('t = 5 的价值：', { target: 1000 * sdn(5, i), model: '1000sd(5)', why: '$1000\\,\\ddot s_{\\angl{5}} = 1000(1.04)\\,s_{\\angl{5}} = 5632.98$。' }),
-          expr('验证恒等式：用 $s_{\\angl{6}} - 1$ 写同一个值。', { target: 1000 * sdn(5, i), model: '1000(s(6) - 1)', why: '想象 t = 5 也存一笔：那是 6 笔期末年金 $s_{\\angl{6}}$，再减掉这多出来的 1。' }),
+          ], { anim: [{ do: 'drop', t: 0 }, { do: 'note', t: 0, text: '首笔 t=0' }] }),
+          expr('t = 0 的价值（现值）：', { target: 1000 * adn(5, i), model: '1000ad(5)', anim: [{ do: 'stack', ts: [0, 1, 2, 3, 4], to: 0, amt: 1000, i }], hint: '$\\ddot a$ 写成 ad。' }),
+          expr('t = 5 的价值：', { target: 1000 * sdn(5, i), model: '1000sd(5)', anim: [{ do: 'stack', ts: [0, 1, 2, 3, 4], to: 5, amt: 1000, i, tone: 'ink' }], why: '$1000\\,\\ddot s_{\\angl{5}} = 1000(1.04)\\,s_{\\angl{5}} = 5632.98$。' }),
+          expr('验证恒等式：用 $s_{\\angl{6}} - 1$ 写同一个值。', { target: 1000 * sdn(5, i), model: '1000(s(6) - 1)', anim: [{ do: 'drop', t: 5, amt: '+1,000' }, { do: 'note', t: 4.4, text: 's⌐6 减一笔' }, { do: 'answer', t: 5, value: 1000 * sdn(5, i) }], why: '想象 t = 5 也存一笔：那是 6 笔期末年金 $s_{\\angl{6}}$，再减掉这多出来的 1。' }),
         ],
       };
     },
@@ -310,15 +310,16 @@ const lessons = [
       const i = 0.05;
       return {
         text: '一个永续年金：每年末付 500，第一笔在第 4 年末。年利率 5%。今天值多少？',
+        timeline: tl(9, [...flowsEvery(4, 8, '500'), { t: 9, amt: '…' }], { focal: 0, rate: 'i = 5%' }),
         vars: { i },
         steps: [
           choice('$a_{\\angl{\\infty}}$ 把这串钱压成一笔，落在哪一刻？', [
             ['t = 3', true],
             ['t = 4', false, 't = 4 是第一笔付款本身，是 $\\ddot a_{\\angl{\\infty}}$ 的落点。'],
             ['t = 0', false, '$a_{\\angl{\\infty}}$ 落在第一笔前一期，不会自己跳过空着的 3 年。'],
-          ]),
-          expr('t = 3 的价值：', { target: 500 / i, model: '500a(inf)', hint: '永续年金写成 a(inf)，也可以直接写 500/i。' }),
-          expr('今天的价值：', { target: (500 / i) / 1.05 ** 3, model: '500a(inf)v^3', why: '$10000 \\times v^3 = 8638.38$。' }),
+          ], { anim: [{ do: 'note', t: 3, text: 'a∞ 落点' }] }),
+          expr('t = 3 的价值：', { target: 500 / i, model: '500a(inf)', anim: [...[4, 5, 6, 7, 8].map(t => ({ do: 'move', from: t, to: 3, ms: 320 })), { do: 'move', from: 9, to: 3, label: '500 ÷ i', result: 500 / i }], hint: '永续年金写成 a(inf)，也可以直接写 500/i。' }),
+          expr('今天的价值：', { target: (500 / i) / 1.05 ** 3, model: '500a(inf)v^3', anim: [{ do: 'move', from: 3, to: 0, label: '×v³', tone: 'ink' }, { do: 'answer', t: 0, value: (500 / i) / 1.05 ** 3 }], why: '$10000 \\times v^3 = 8638.38$。' }),
         ],
       };
     },
@@ -446,14 +447,14 @@ const lessons = [
             ['t = 6', true],
             ['t = 7', false, 't = 7 是 $\\ddot s_{\\angl{6}}$ 的落点。'],
             ['t = 9', false, '$s$ 只落在最后一笔上，不会自己跑到比较日。'],
-          ]),
+          ], { anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5, 6], to: 6, amt: 200, i }] }),
           choice('从 t = 6 到 t = 9，乘什么？', [
             ['$(1+i)^3$', true],
             ['$v^3$', false, '比较日在后面，往未来搬，钱变多。'],
             ['$(1+i)^4$', false, '从 6 数到 9 是 3 期。'],
-          ]),
-          expr('写出 t = 9 的价值：', { target: sumPV(lvl(1, 6, 200), i, 9), model: '200s(6)(1+i)^3', why: '$200 \\times 6.8019 \\times 1.1576 = 1574.81$。' }),
-          expr('换个锚：从 $a_{\\angl{6}}$（t = 0）出发再写一次。', { target: sumPV(lvl(1, 6, 200), i, 9), model: '200a(6)(1+i)^9', why: '锚不同，搬的期数不同，结果一样。' }),
+          ], { anim: [{ do: 'move', from: 6, to: 9, label: '×(1+i)³' }] }),
+          expr('写出 t = 9 的价值：', { target: sumPV(lvl(1, 6, 200), i, 9), model: '200s(6)(1+i)^3', anim: [{ do: 'answer', t: 9, value: sumPV(lvl(1, 6, 200), i, 9) }], why: '$200 \\times 6.8019 \\times 1.1576 = 1574.81$。' }),
+          expr('换个锚：从 $a_{\\angl{6}}$（t = 0）出发再写一次。', { target: sumPV(lvl(1, 6, 200), i, 9), model: '200a(6)(1+i)^9', anim: [{ do: 'note', t: 0, text: 'a⌐6 落点' }, { do: 'move', from: 0, to: 9, label: '×(1+i)⁹', tone: 'ink' }], why: '锚不同，搬的期数不同，结果一样。' }),
         ],
       };
     },
@@ -599,9 +600,9 @@ const lessons = [
             ['$(1.06)^{1/12} - 1$', true],
             ['$0.06/12$', false, '6% 是**有效**年利率，不是名义利率，不能直接除以 12。'],
             ['$(1.06)^{12} - 1$', false, '方向反了：这是把 6% 当成月利率再算一年。'],
-          ]),
-          expr('写出 j：', { target: j, model: '(1+i)^(1/12) - 1', unit: 'rate', why: '$j \\approx 0.4868\\%$，比 0.5% 略小。' }),
-          expr('写出现值（n = 24 笔，用 a(24, j)）：', { target: 200 * an(24, j), model: '200a(24, j)', vars: { j }, hint: '付款次数 24，每期利率 j。' }),
+          ], { anim: [{ do: 'move', from: 0, to: 12, label: '×(1+j)¹²', tone: 'ink', resultText: '×1.06' }] }),
+          expr('写出 j：', { target: j, model: '(1+i)^(1/12) - 1', unit: 'rate', anim: [{ do: 'note', t: 6, y: 36, text: 'j ≈ 0.4868%' }], why: '$j \\approx 0.4868\\%$，比 0.5% 略小。' }),
+          expr('写出现值（n = 24 笔，用 a(24, j)）：', { target: 200 * an(24, j), model: '200a(24, j)', vars: { j }, anim: [...[1, 2, 3].map(t => ({ do: 'move', from: t, to: 0, ms: 380 })), { do: 'move', from: 24, to: 0, label: '÷(1+j)²⁴', ms: 520 }, { do: 'note', t: 18, y: 36, text: '24 笔 · 利率 j' }, { do: 'answer', t: 0, value: 200 * an(24, j) }], hint: '付款次数 24，每期利率 j。' }),
         ],
       };
     },
@@ -727,10 +728,10 @@ const lessons = [
             ['P = 100，Q = 10', true],
             ['P = 10，Q = 100', false, 'P 是第一笔的金额（100），Q 是每期增加的量（10），两个放反了。'],
             ['P = 170，Q = −10', false, '那是倒过来看成递减，第一笔是 100 不是 170。'],
-          ]),
-          expr('等额部分：', { target: 100 * an(8, i), model: '100a(8)' }),
-          expr('台阶部分（0, 10, …, 70）：', { target: 10 * (an(8, i) - 8 / 1.05 ** 8) / i, model: '10(a(8) - 8v^8)/i' }),
-          expr('合起来：', { target: sumPV(fl, i, 0), model: '100a(8) + 10(a(8) - 8v^8)/i', why: '也可以写成 90a(8) + 10Ia(8)。' }),
+          ], { anim: [{ do: 'note', t: 4.5, y: 36, text: '100 + 台阶 10' }] }),
+          expr('等额部分：', { target: 100 * an(8, i), model: '100a(8)', anim: [{ do: 'stack', ts: [1, 2, 3, 4, 5, 6, 7, 8], to: 0, amt: 100, i }] }),
+          expr('台阶部分（0, 10, …, 70）：', { target: 10 * (an(8, i) - 8 / 1.05 ** 8) / i, model: '10(a(8) - 8v^8)/i', anim: [2, 3, 4, 5, 6, 7, 8].map(t => ({ do: 'move', from: t, to: 0, tone: 'ink', ms: 360, result: sumPV(arithFlows(t, 0, 10), i, 0) })) }),
+          expr('合起来：', { target: sumPV(fl, i, 0), model: '100a(8) + 10(a(8) - 8v^8)/i', anim: [{ do: 'answer', t: 0, value: sumPV(fl, i, 0) }], why: '也可以写成 90a(8) + 10Ia(8)。' }),
         ],
       };
     },
@@ -839,15 +840,16 @@ const lessons = [
       const i = 0.08, g = 0.03;
       return {
         text: '一只股票：1 年后发股息 2，之后每年增长 3%。投资者要求 8% 的收益率。(a) 如果股息永远发下去，股价是多少？(b) 如果只看前 10 年的股息呢？',
+        timeline: tl(10, geoFlows(10, 2, g).map(f => ({ t: f.t, amt: money(f.amt) })), { focal: 0, rate: 'i = 8% · g = 3%' }),
         vars: { i, g },
         steps: [
           choice('永续增长年金的现值是：', [
             ['$\\dfrac{2}{i - g}$', true],
             ['$\\dfrac{2}{i + g}$', false, '增长让未来的钱**更值钱**，分母应该变小：$i - g$。'],
             ['$\\dfrac{2}{i}$', false, '这忽略了增长，是等额永续年金。'],
-          ]),
-          expr('(a) 股价：', { target: 2 / (i - g), model: '2/(i - g)', why: '$2 / 0.05 = 40$。' }),
-          expr('(b) 前 10 年股息的现值：', { target: sumPV(geoFlows(10, 2, g), i, 0), model: '2(1 - ((1+g)/(1+i))^10)/(i - g)', hint: '在永续公式上乘 $1 - \\left(\\frac{1+g}{1+i}\\right)^{10}$。' }),
+          ], { anim: [{ do: 'note', t: 3, y: 36, text: '分母 i − g' }] }),
+          expr('(a) 股价：', { target: 2 / (i - g), model: '2/(i - g)', anim: [{ do: 'note', t: 7, y: 36, text: '永续 → 40' }], why: '$2 / 0.05 = 40$。' }),
+          expr('(b) 前 10 年股息的现值：', { target: sumPV(geoFlows(10, 2, g), i, 0), model: '2(1 - ((1+g)/(1+i))^10)/(i - g)', anim: [...Array.from({ length: 10 }, (_, k) => ({ do: 'move', from: k + 1, to: 0, ms: 260, result: sumPV(geoFlows(k + 1, 2, g), i, 0) })), { do: 'answer', t: 0, value: sumPV(geoFlows(10, 2, g), i, 0) }], hint: '在永续公式上乘 $1 - \\left(\\frac{1+g}{1+i}\\right)^{10}$。' }),
         ],
       };
     },
@@ -967,15 +969,16 @@ const lessons = [
       const i = 0.05, dl = Math.log(1.05);
       return {
         text: '一份收入以每年 1,000 的速度连续流入，共 10 年。年利率 5%。今天值多少？和每年末付 1,000 比呢？',
+        timeline: tl(10, flowsEvery(0.5, 10, '', 0.5), { focal: 0, rate: 'i = 5% · 1,000/年' }),
         vars: { i },
         steps: [
           choice('$\\bar a_{\\angl{10}}$ 的分母是：', [
             ['$\\delta = \\ln(1.05)$', true],
             ['$i = 0.05$', false, '分母是 $i$ 的是期末年金 $a_{\\angl{10}}$。'],
             ['$d = 0.05/1.05$', false, '分母是 $d$ 的是期初年金 $\\ddot a_{\\angl{10}}$。'],
-          ]),
-          expr('写出现值：', { target: (1000 * (1 - 1.05 ** -10)) / dl, model: '1000(1 - v^10)/delta', hint: '也可以输入 1000abar(10)。' }),
-          expr('用 $\\frac{i}{\\delta}\\,a_{\\angl{10}}$ 再写一次：', { target: 1000 * (i / dl) * an(10, i), model: '1000(i/delta)a(10)', why: '比 $1000\\,a_{\\angl{10}} = 7721.73$ 大一点：7913.21。' }),
+          ], { anim: [{ do: 'note', t: 5, y: 36, text: 'δ = ln 1.05' }] }),
+          expr('写出现值：', { target: (1000 * (1 - 1.05 ** -10)) / dl, model: '1000(1 - v^10)/delta', anim: [...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(t => ({ do: 'move', from: t, to: 0, ms: 280 })), { do: 'move', from: 10, to: 0, label: '×e^(−δt)', ms: 520 }, { do: 'answer', t: 0, value: (1000 * (1 - 1.05 ** -10)) / dl }], hint: '也可以输入 1000abar(10)。' }),
+          expr('用 $\\frac{i}{\\delta}\\,a_{\\angl{10}}$ 再写一次：', { target: 1000 * (i / dl) * an(10, i), model: '1000(i/delta)a(10)', anim: [{ do: 'note', t: 7.5, y: 280, text: 'a⌐10 × i/δ' }], why: '比 $1000\\,a_{\\angl{10}} = 7721.73$ 大一点：7913.21。' }),
         ],
       };
     },

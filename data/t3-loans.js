@@ -58,6 +58,7 @@ const lessons = [
     example: r => {
       const i = 0.06, L = 10000, n = 5;
       const Pm = L / an(n, i), I1 = L * i, PR1 = Pm - I1;
+      const bal = Array.from({ length: n + 1 }, (_, t) => [t, Math.max(0, L * (1 + i) ** t - Pm * sn(t, i))]);
       return {
         text: '借 10,000，年利率 6%，分 5 年每年末等额还清。求每年还款，并造出摊还表的第一行。',
         timeline: tl(5, [{ t: 0, amt: '10,000' }, ...flowsEvery(1, 5, 'P').map(f => ({ ...f, side: 'down' }))], { focal: 0, rate: 'i = 6%' }),
@@ -67,11 +68,11 @@ const lessons = [
             ['$10000 = P\\,a_{\\angl{5}}$', true],
             ['$10000 = 5P$', false, '不同时刻的钱不能直接相加：要先折回时刻 0。'],
             ['$10000 = P\\,s_{\\angl{5}}$', false, '$P s_{\\angl{5}}$ 是还款在第 5 年末的终值；10,000 在时刻 0，要和现值比。'],
-          ], { hint: '在时刻 0 写价值方程。' }),
-          expr('第二步：每年还款 P =', { target: Pm, model: '10000/a(5)', hint: '两边除以 $a_{\\angl{5}}$。', why: `$P = ${money(Pm)}$。` }),
-          expr('第三步：第 1 年的利息部分 $I_1$ =', { target: I1, model: '10000i', hint: '利息 = i × 上期末余额，而上期末（时刻 0）余额是 10,000。', why: '$0.06 \\times 10000 = 600$。' }),
-          expr('第四步：第 1 年的本金部分 $PR_1$ =（可以接着写 10000/a(5)）', { target: PR1, model: '10000/a(5) - 10000i', why: `$${money(Pm)} - 600 = ${money(PR1)}$。` }),
-          expr('第五步：第 1 次还款后的余额 $B_1$ =', { target: L - PR1, model: '10000 - (10000/a(5) - 10000i)', hint: '旧余额 − 本金部分。', why: `$B_1 = ${money(L - PR1)}$。也可以写成 $10000(1+i) - P$：先长一年利息，再减去还款。` }),
+          ], { hint: '在时刻 0 写价值方程。', anim: [...[1, 2, 3, 4, 5].map(t => ({ do: 'move', from: t, to: 0, ms: 380 })), { do: 'note', t: 2.5, y: 314, text: '10,000 = P·a⌐5' }] }),
+          expr('第二步：每年还款 P =', { target: Pm, model: '10000/a(5)', anim: [{ do: 'note', t: 3.9, y: 36, text: `P = ${money(Pm)}` }], hint: '两边除以 $a_{\\angl{5}}$。', why: `$P = ${money(Pm)}$。` }),
+          expr('第三步：第 1 年的利息部分 $I_1$ =', { target: I1, model: '10000i', anim: [{ do: 'grow', from: 0, to: 1, start: L, mult: 1 + i, label: '×1.06' }, { do: 'note', t: 1, y: 36, text: '利息 600' }], hint: '利息 = i × 上期末余额，而上期末（时刻 0）余额是 10,000。', why: '$0.06 \\times 10000 = 600$。' }),
+          expr('第四步：第 1 年的本金部分 $PR_1$ =（可以接着写 10000/a(5)）', { target: PR1, model: '10000/a(5) - 10000i', anim: [{ do: 'note', t: 2.4, y: 36, text: `本金 ${money(PR1, 0)}` }], why: `$${money(Pm)} - 600 = ${money(PR1)}$。` }),
+          expr('第五步：第 1 次还款后的余额 $B_1$ =', { target: L - PR1, model: '10000 - (10000/a(5) - 10000i)', anim: [{ do: 'balance', points: bal.slice(0, 2) }, { do: 'answer', t: 1, value: L - PR1 }], hint: '旧余额 − 本金部分。', why: `$B_1 = ${money(L - PR1)}$。也可以写成 $10000(1+i) - P$：先长一年利息，再减去还款。` }),
         ],
       };
     },
@@ -197,14 +198,14 @@ const lessons = [
             ['6 次', true],
             ['7 次', false, '第 4 次已经付了，不算在内。'],
             ['4 次', false, '4 次是已经付掉的。'],
-          ]),
-          expr('prospective：余额 =', { target: Pm * an(6, i), model: 'P a(6)', hint: '剩下 6 次 P 折到时刻 4。' }),
-          expr('retrospective：余额 =', { target: L * (1 + i) ** 4 - Pm * sn(4, i), model: '10000(1+i)^4 - P s(4)', hint: '借的长 4 年，减去已付 4 次的终值。' }),
+          ], { anim: [...[5, 6, 7, 8, 9, 10].map(t => ({ do: 'drop', t })), { do: 'note', t: 7.5, y: 36, text: '剩 6 次' }] }),
+          expr('prospective：余额 =', { target: Pm * an(6, i), model: 'P a(6)', anim: [{ do: 'stack', ts: [5, 6, 7, 8, 9, 10], to: 4, amt: Pm, i }], hint: '剩下 6 次 P 折到时刻 4。' }),
+          expr('retrospective：余额 =', { target: L * (1 + i) ** 4 - Pm * sn(4, i), model: '10000(1+i)^4 - P s(4)', anim: [{ do: 'move', from: 0, to: 4, label: '10,000×1.05⁴', tone: 'ink', result: L * (1 + i) ** 4 }, ...[1, 2, 3].map(t => ({ do: 'move', from: t, to: 4, ms: 480, result: L * (1 + i) ** 4 - Pm * sn(t, i) * (1 + i) ** (4 - t) })), { do: 'note', t: 2, y: 36, text: '减去 P·s⌐4' }, { do: 'answer', t: 4, value: L * (1 + i) ** 4 - Pm * sn(4, i) }], hint: '借的长 4 年，减去已付 4 次的终值。' }),
           choice('两个结果比较：', [
             ['完全相同', true],
             ['prospective 大一点', false, '两者是同一个价值方程移项得到的，必然相等。'],
             ['retrospective 大一点', false, '两者是同一个价值方程移项得到的，必然相等。'],
-          ], { why: `都等于 ${money(Pm * an(6, i))}。` }),
+          ], { why: `都等于 ${money(Pm * an(6, i))}。`, anim: [{ do: 'note', t: 7.5, y: 280, text: '前后一致' }] }),
         ],
       };
     },
@@ -329,16 +330,17 @@ const lessons = [
       const i = 0.05;
       return {
         text: '贷款每年末还 1,000，共 10 次，利率 5%。第 4 次还款里，本金和利息各多少？',
-        timeline: tl(10, flowsEvery(1, 10, '1,000'), { focal: 3, rate: 'i = 5%' }),
+        // B_t = 1000 a(10 − t): the balance that the 4th payment brings down from B_3 to B_4.
+        timeline: tl(10, flowsEvery(1, 10, '1,000'), { focal: 4, rate: 'i = 5%' }),
         vars: { i },
         steps: [
           choice('第 4 次的本金部分是 $1000v^{?}$，指数是：', [
             ['7 = 10 − 4 + 1', true],
             ['6 = 10 − 4', false, '从第 4 次数到第 10 次（含两端）是 7 次。'],
             ['4', false, '这是从开头数；本金部分要从**最后**往回数。'],
-          ]),
-          expr('本金部分 $PR_4$ =', { target: 1000 / 1.05 ** 7, model: '1000v^7' }),
-          expr('利息部分 $I_4$ =', { target: 1000 * (1 - 1 / 1.05 ** 7), model: '1000(1-v^7)', why: '本金 710.68，利息 289.32，加起来正好 1,000。' }),
+          ], { anim: [...[4, 5, 6, 7, 8, 9, 10].map(t => ({ do: 'drop', t })), { do: 'note', t: 7, y: 36, text: '第 4~10 次：7' }] }),
+          expr('本金部分 $PR_4$ =', { target: 1000 / 1.05 ** 7, model: '1000v^7', anim: [{ do: 'move', from: 10, to: 3, label: '×v⁷', tone: 'ink' }, { do: 'balance', points: Array.from({ length: 5 }, (_, t) => [t, 1000 * an(10 - t, i)]) }, { do: 'note', t: 2, y: 36, text: `本金 ${money(1000 / 1.05 ** 7)}` }] }),
+          expr('利息部分 $I_4$ =', { target: 1000 * (1 - 1 / 1.05 ** 7), model: '1000(1-v^7)', anim: [{ do: 'note', t: 6, y: 280, text: `利息 ${money(1000 * (1 - 1 / 1.05 ** 7))}` }], why: '本金 710.68，利息 289.32，加起来正好 1,000。' }),
         ],
       };
     },
@@ -440,19 +442,20 @@ const lessons = [
       const i = 0.05, L = 5000, Pm = 1000;
       const x = Math.log(Pm / (Pm - L * i)) / Math.log(1 + i);
       const B5 = L * (1 + i) ** 5 - Pm * sn(5, i);
+      const bal = Array.from({ length: 6 }, (_, t) => [t, L * (1 + i) ** t - Pm * sn(t, i)]).concat([[6, 0]]);
       return {
         text: '借 5,000，利率 5%，每年末还 1,000，最后一笔还零头（drop payment）。最后一笔是多少？',
         timeline: tl(6, [...flowsEvery(1, 5, '1,000'), { t: 6, amt: 'X' }], { focal: 6, rate: 'i = 5%' }),
         vars: { i },
         steps: [
-          expr('先解 $1000\\,a_{\\angl{x}} = 5000$：x =', { target: x, model: 'ln(1000/(1000 - 5000i))/ln(1+i)', unit: 'number', hint: '$v^x = 1 - 5000i/1000$，两边取对数。', why: `x ≈ ${x.toFixed(3)}。` }),
+          expr('先解 $1000\\,a_{\\angl{x}} = 5000$：x =', { target: x, model: 'ln(1000/(1000 - 5000i))/ln(1+i)', unit: 'number', anim: [{ do: 'note', t: 3, y: 36, text: `x ≈ ${x.toFixed(2)}` }], hint: '$v^x = 1 - 5000i/1000$，两边取对数。', why: `x ≈ ${x.toFixed(3)}。` }),
           choice('所以能付满几次 1,000？', [
             ['5 次，第 6 年末付零头', true],
             ['6 次', false, `x ≈ ${x.toFixed(2)} < 6：付满 6 次就多还了。`],
             ['4 次', false, '第 5 次付完时贷款还没还清，所以 5 次都是足额的。'],
-          ]),
-          expr('第 5 次付完的余额 $B_5$（retrospective）=', { target: B5, model: '5000(1+i)^5 - 1000s(5)' }),
-          expr('drop payment（第 6 年末）=', { target: B5 * (1 + i), model: '(5000(1+i)^5 - 1000s(5))(1+i)', why: `余额 ${money(B5)} 再长一年利息：${money(B5 * 1.05)}。` }),
+          ], { anim: [...[1, 2, 3, 4, 5].map(t => ({ do: 'drop', t })), { do: 'note', t: 6, text: '零头' }] }),
+          expr('第 5 次付完的余额 $B_5$（retrospective）=', { target: B5, model: '5000(1+i)^5 - 1000s(5)', anim: [{ do: 'balance', points: bal.slice(0, 6) }] }),
+          expr('drop payment（第 6 年末）=', { target: B5 * (1 + i), model: '(5000(1+i)^5 - 1000s(5))(1+i)', anim: [{ do: 'grow', from: 5, to: 6, start: B5, mult: 1 + i, label: '×1.05' }, { do: 'answer', t: 6, value: B5 * (1 + i) }], why: `余额 ${money(B5)} 再长一年利息：${money(B5 * 1.05)}。` }),
         ],
       };
     },
