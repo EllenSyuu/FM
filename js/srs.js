@@ -64,7 +64,7 @@ export function dueToday(ids, cards, { cap = 30, today = dayKey() } = {}) {
 export function streak(log, today = dayKey()) {
   let d = log[today] ? today : addDays(today, -1);
   let n = 0;
-  while (log[d] && (log[d].solved || 0) + (log[d].lessons || 0) > 0) {
+  while (log[d] && (log[d].solved || 0) + (log[d].lessons || 0) + (log[d].steps || 0) > 0) {
     n += 1;
     d = addDays(d, -1);
   }

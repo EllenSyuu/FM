@@ -19,9 +19,12 @@ const DEV = store.deviceId();
 // Every change is saved here at once and synced to other devices a few seconds later.
 const persist = () => {
   S.log = aggregateLog(S.devlog);
-  store.save(S);
+  savedAt = store.save(S) ? Date.now() : -1;
   sync.schedule();
+  paintSyncStatus();
 };
+// > 0: time of the last save; 1: loaded earlier progress; -1: the browser refused to store.
+let savedAt = Object.keys(S.devlog || {}).length || Object.keys(S.prog || {}).length ? 1 : 0;
 const app = document.getElementById('app');
 const lessonById = Object.fromEntries(LESSONS.map(l => [l.id, l]));
 const drillById = Object.fromEntries(DRILLS.map(d => [d.id, d]));
@@ -142,12 +145,16 @@ const learnedMap = () => Object.fromEntries(LESSONS.filter(l => isLearned_(l.id)
 const plan = () => studyPlan({ lessonIds: LESSONS.map(l => l.id), learned: learnedMap(), today: today(), examDate: S.settings.examDate });
 const dueIds = () => dueToday(allDrillIds(), S.cards, { cap: S.settings.reviewCap, today: today() });
 
+/* A day is checked in (打卡) as soon as anything is studied: a step answered, a drill
+   finished or a lesson learned. */
+const checkedIn = l => !!(l && ((l.steps || 0) + (l.solved || 0) + (l.lessons || 0) > 0));
+
 function last30() {
   const out = [];
   for (let k = 29; k >= 0; k--) {
     const key = addDays(today(), -k);
     const l = S.log[key];
-    out.push({ key, count: l ? l.solved + l.steps / 3 + 3 * (l.lessons || 0) : 0, done: !!(l && l.done), today: k === 0 });
+    out.push({ key, count: l ? l.solved + l.steps / 3 + 3 * (l.lessons || 0) : 0, done: checkedIn(l), today: k === 0 });
   }
   return out;
 }
@@ -190,6 +197,7 @@ function renderHome() {
           ${next ? `<a class="btn" href="#/lesson/${next.id}">学下一课 <span aria-hidden="true">→</span></a>` : ''}
           <a class="btn ${next ? 'ghost' : ''}" href="#/practice">${due.length ? `复习 ${due.length} 题` : '随手练几题'}</a>
         </div>
+        ${checkInLine()}
         <p class="note">${paceNote(p, sk)}</p>
       </div>
     </div>
@@ -254,6 +262,12 @@ function resumeLine() {
   const k = v.steps.filter(x => x.done).length;
   const href = kind === 'ex' ? `#/lesson/${id}` : `#/drill/${id}`;
   return `<p class="next-line resume"><span class="kicker">Continue · 接着做</span><a href="${href}">${rich(item.zh)} <i>${kind === 'ex' ? '例题' : '练习'}第 ${k + 1} 步</i></a></p>`;
+}
+
+function checkInLine() {
+  const l = S.log[today()];
+  if (!checkedIn(l)) return `<p class="checkin"><span class="stamp off">打卡</span>今天还没打卡：答对任意一步就算。</p>`;
+  return `<p class="checkin on"><span class="stamp">${tickMark()}已打卡</span>今天答了 ${l.steps || 0} 步${l.lessons ? `，学完 ${l.lessons} 课` : ''}${l.solved ? `，做完 ${l.solved} 题` : ''}。</p>`;
 }
 
 function paceNote(p, sk) {
@@ -1052,7 +1066,11 @@ function paintSyncStatus(st = sync.getStatus()) {
   if (el) {
     el.textContent = syncLabel(st);
     el.dataset.state = st.state;
-    el.hidden = st.state === 'off';
+    el.hidden = st.state === 'off' && !savedAt;
+    if (st.state === 'off' && savedAt) {
+      el.textContent = savedAt === 1 ? '进度已存在本机' : savedAt > 0 ? `已保存在本机 ${fmtTime(savedAt)}` : '无法保存：浏览器禁用了本地存储';
+      el.dataset.state = savedAt > 0 ? 'ok' : 'error';
+    }
   }
   const box = document.getElementById('syncbox-state');
   if (box) box.textContent = syncLabel(st) || '未连接';

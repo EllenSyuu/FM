@@ -8,7 +8,7 @@
  *
  * Progress itself is never cached here: it lives in localStorage and the private Gist.
  */
-const VERSION = 'fm-notebook-v1';
+const VERSION = 'fm-notebook-v2';
 const SHELL = [
   './',
   'index.html',
